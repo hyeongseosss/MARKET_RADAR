@@ -1,0 +1,1087 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>AI 증권사</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/galmuri@2.39.3/dist/galmuri.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
+<style>
+  :root { --bg:#0d0f14; --panel:#151821; --panel2:#1c2030; --line:#2a2f42; --ink:#e9ecf3; --dim:#8a91a6; --gold:#ffcf5c; --up:#ff5f6d; --down:#4ea3ff; --ok:#3ddc97; --warn:#ff9f43; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html, body { margin:0; height:100%; background:var(--bg); color:var(--ink); font-family:Pretendard, system-ui, sans-serif; overflow:hidden; }
+  .up { color:var(--up); } .down { color:var(--down); } .dim { color:var(--dim); } .ok { color:var(--ok); }
+  button { font-family:inherit; cursor:pointer; }
+  #app { height:100%; display:flex; flex-direction:column; max-width:1500px; margin:0 auto; }
+  /* 위 막대 */
+  header { display:flex; align-items:center; gap:8px; padding:8px 12px; background:#10131b; border-bottom:1px solid var(--line); }
+  header .logo { font-family:"Galmuri11", monospace; font-size:15px; color:var(--gold); white-space:nowrap; }
+  header .pill { font-size:11px; padding:3px 8px; border-radius:99px; background:var(--panel2); color:var(--dim); white-space:nowrap; display:flex; align-items:center; gap:5px; }
+  header .pill i { width:7px; height:7px; border-radius:50%; background:#555; display:inline-block; }
+  header .pill.on i { background:var(--ok); box-shadow:0 0 6px var(--ok); animation:pulse 2s infinite; }
+  header .sp { flex:1; } header a { color:var(--dim); font-size:12px; text-decoration:none; white-space:nowrap; }
+  #clock { font-size:12px; color:var(--dim); white-space:nowrap; font-variant-numeric:tabular-nums; }
+  @keyframes pulse { 50% { opacity:.45; } }
+  main { flex:1; min-height:0; display:grid; grid-template-columns:minmax(0, 1fr); grid-template-rows:minmax(330px, 55%) minmax(0, 1fr); }
+  main > section { min-width:0; }
+  /* 방 */
+  #roomwrap { position:relative; display:flex; flex-direction:column; min-height:0; border-bottom:1px solid var(--line); }
+  #rooms { display:flex; gap:4px; padding:6px 8px 0; background:#10131b; }
+  #rooms button { flex:1; border:0; border-radius:8px 8px 0 0; padding:7px 0; font-size:13px; background:#171a24; color:var(--dim); }
+  #rooms button.on { background:#3b2c1e; color:#fff; } #rooms button[data-r="coin"].on { background:#1f2a3d; }
+  #rooms button .bdg { font-size:10px; margin-left:4px; padding:1px 6px; border-radius:99px; background:var(--up); color:#fff; display:none; }
+  #rooms button.meet .bdg { display:inline; animation:pulse 1.2s infinite; }
+  .led { position:absolute; left:18%; right:calc(4% + 40px); top:1.6%; height:5.2%; background:#050806; border:2px solid #1d1b26; overflow:hidden; display:flex; align-items:center; z-index:1; }
+  .led .run { white-space:nowrap; font-family:"Galmuri11", monospace; font-size:10px; color:#ffcf5c; animation:run 40s linear infinite; padding-left:100%; }
+  .led .run b.up { color:#ff6b6b; font-weight:400; } .led .run b.down { color:#5ab0ff; font-weight:400; }
+  @keyframes run { to { transform:translateX(-100%); } }
+  .wclock { position:absolute; right:2%; top:1.4%; width:34px; height:34px; border-radius:50%; background:#f4efe4; border:3px solid #1d1b26; z-index:1; font-family:"Galmuri11", monospace; font-size:8px; color:#333; display:flex; align-items:center; justify-content:center; }
+  .night { position:absolute; inset:0; background:rgba(4,8,22,.55); z-index:40; pointer-events:none; opacity:0; transition:opacity 1.2s; display:flex; align-items:center; justify-content:center; }
+  .night.on { opacity:1; } .night span { font-family:"Galmuri11", monospace; color:#cfd8ff; font-size:13px; background:rgba(0,0,0,.45); padding:6px 12px; border-radius:8px; }
+  #room { position:relative; flex:1; min-height:0; overflow:hidden; image-rendering:pixelated;
+           background:#c08a5a url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='80' height='32' shape-rendering='crispEdges'><rect width='40' height='15' fill='%23c08a5a'/><rect x='40' width='40' height='15' fill='%23b88252'/><rect y='16' width='20' height='15' fill='%23b47e50'/><rect x='20' y='16' width='40' height='15' fill='%23c4905f'/><rect x='60' y='16' width='20' height='15' fill='%23b47e50'/><rect y='15' width='80' height='1' fill='%238c5e38'/><rect y='31' width='80' height='1' fill='%238c5e38'/><rect x='39' width='1' height='15' fill='%239a6840'/><rect x='79' width='1' height='15' fill='%239a6840'/><rect x='19' y='16' width='1' height='15' fill='%239a6840'/><rect x='59' y='16' width='1' height='15' fill='%239a6840'/><rect x='8' y='5' width='6' height='1' fill='%23ad7849'/><rect x='52' y='9' width='8' height='1' fill='%23a87146'/><rect x='30' y='22' width='7' height='1' fill='%23b07b4c'/></svg>") 0 0 / 160px 64px repeat; }
+  #room.coin { background:#2a3349 url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' shape-rendering='crispEdges'><rect width='16' height='16' fill='%232b3550'/><rect x='16' width='16' height='16' fill='%23293249'/><rect y='16' width='16' height='16' fill='%23293249'/><rect x='16' y='16' width='16' height='16' fill='%232b3550'/><rect x='3' y='4' width='1' height='1' fill='%23384466'/><rect x='21' y='10' width='1' height='1' fill='%23384466'/><rect x='9' y='25' width='1' height='1' fill='%23384466'/><rect x='27' y='20' width='1' height='1' fill='%23384466'/><rect y='15' width='32' height='1' fill='%23222a3f'/><rect x='15' width='1' height='32' fill='%23222a3f'/></svg>") 0 0 / 64px 64px repeat; }
+  .wallbar { position:absolute; left:0; right:0; top:0; height:11%; z-index:0;
+             background:repeating-linear-gradient(90deg, #ead8b8 0 10px, #e2cda9 10px 20px); border-bottom:6px solid #b88b5e; box-shadow:0 3px 0 #7a5534; }
+  #room.coin .wallbar { background:repeating-linear-gradient(90deg, #26314a 0 10px, #222c43 10px 20px); border-bottom-color:#4b5a7a; box-shadow:0 3px 0 #161d2e; }
+  .lights { position:absolute; inset:0; z-index:1; pointer-events:none;
+            background:radial-gradient(circle at 22% 30%, rgba(255,214,140,.20), transparent 26%), radial-gradient(circle at 78% 30%, rgba(255,214,140,.18), transparent 26%),
+                       radial-gradient(ellipse at 50% 60%, rgba(255,226,170,.22), transparent 34%), radial-gradient(circle at 20% 88%, rgba(255,214,140,.16), transparent 24%),
+                       radial-gradient(circle at 80% 88%, rgba(255,214,140,.16), transparent 24%), linear-gradient(rgba(0,0,0,0) 60%, rgba(40,20,5,.18)); }
+  #room.coin .lights { background:radial-gradient(circle at 25% 32%, rgba(120,190,255,.14), transparent 26%), radial-gradient(circle at 75% 32%, rgba(120,190,255,.12), transparent 26%),
+                       radial-gradient(ellipse at 50% 60%, rgba(150,200,255,.18), transparent 34%), linear-gradient(rgba(0,0,0,0) 55%, rgba(0,0,20,.25)); }
+  .px { position:absolute; transform:translate(-50%, -100%); pointer-events:none; }
+  .px svg { display:block; }
+  .win { position:absolute; left:2%; top:1.4%; width:13%; height:8%; z-index:1; }
+  .win svg { width:100%; height:100%; display:block; }
+  .rug { position:absolute; left:50%; top:58%; width:52%; height:34%; transform:translate(-50%, -50%); z-index:0; pointer-events:none; }
+  #room.coin .rug { top:60%; }
+  .rug svg, .table svg { width:100%; height:100%; display:block; }
+  .table { position:absolute; left:50%; top:58%; width:32%; height:19%; transform:translate(-50%, -50%); z-index:1; }
+  #room.coin .table { top:60%; }
+  .chair { position:absolute; transform:translate(-50%, -60%); z-index:1; pointer-events:none; }
+  .desk { position:absolute; width:62px; height:38px; transform:translate(-50%, -30%); z-index:3; pointer-events:none; }
+  .desk svg { display:block; }
+  .desk .scr { fill:#3a86c8; transition:fill .3s; } #room.coin .desk .scr { fill:#2f6db0; }
+  .desk.hot .scr { fill:#7af0c0; } .desk.hot svg { filter:drop-shadow(0 0 4px rgba(122,240,192,.8)); }
+  .coffee { position:absolute; transform:translate(-50%, -100%); z-index:3; pointer-events:none; }
+  .coffee.brew .steam { opacity:1; animation:pulse .8s infinite; } .coffee .steam { opacity:0; transition:opacity .3s; }
+  #room.coin.late .wallbar:after { content:""; position:absolute; inset:0; background:rgba(0,0,30,.35); }
+  .filters { display:flex; gap:4px; margin-bottom:6px; flex-wrap:wrap; }
+  .filters button { border:1px solid var(--line); background:var(--panel2); color:var(--dim); border-radius:99px; font-size:11px; padding:2px 9px; }
+  .filters button.on { background:#2b3350; color:#fff; border-color:#4a5580; }
+  .gauge { position:relative; height:8px; border-radius:99px; background:linear-gradient(90deg, #4ea3ff, #2a2f42 50%, #ff5f6d); margin:6px 0 2px; }
+  .gauge i { position:absolute; top:-3px; width:4px; height:14px; margin-left:-2px; background:#fff; border-radius:2px; box-shadow:0 0 4px #000; }
+  .gl { display:flex; justify-content:space-between; font-size:10px; color:var(--dim); }
+  .pop { position:absolute; transform:translate(-50%, -100%); font-size:13px; font-weight:800; padding:2px 8px; border-radius:99px; z-index:45; pointer-events:none;
+         animation:pop 2.8s ease-out forwards; white-space:nowrap; box-shadow:0 2px 8px rgba(0,0,0,.4); }
+  .pop.win { background:#3ddc97; color:#04210f; } .pop.loss { background:#ff5f6d; color:#2a0508; } .pop.go { background:#ffcf5c; color:#2a1d00; }
+  @keyframes pop { 0% { opacity:0; margin-top:6px; } 12% { opacity:1; margin-top:0; } 75% { opacity:1; margin-top:-26px; } 100% { opacity:0; margin-top:-40px; } }
+  #ctrl { position:absolute; right:8px; bottom:8px; z-index:55; display:none; gap:4px; }
+  #ctrl.on { display:flex; } #ctrl button { border:1px solid #3a4160; background:rgba(16,19,27,.9); color:#cfd4e2; border-radius:99px; font-size:11px; padding:3px 9px; }
+  #ctrl button.on { background:var(--gold); color:#000; }
+  .rail2 { position:relative; height:6px; border-radius:99px; margin:5px 0 2px; background:linear-gradient(90deg, #ff9f43, #2a2f42 45%, #2a2f42 55%, #3ddc97); }
+  .rail2 i { position:absolute; top:-3px; width:4px; height:12px; margin-left:-2px; background:#fff; border-radius:2px; box-shadow:0 0 4px #000; transition:left .6s; }
+  .rail2 b { position:absolute; top:-1px; width:2px; height:8px; margin-left:-1px; background:var(--gold); }
+  /* 발표 화면 · 주문 단말기 · 커피머신 */
+  #board { position:absolute; left:24%; right:24%; top:1.4%; height:0; overflow:hidden; background:#0b1118; border:0 solid #1d1b26; border-radius:4px; z-index:4;
+           transition:height .6s cubic-bezier(.3,.7,.3,1), border-width .3s; box-shadow:0 6px 18px rgba(0,0,0,.45); }
+  #board.on { height:19%; border-width:3px; }
+  #board .bt { font-size:10px; color:#ffcf5c; padding:3px 6px 0; font-family:"Galmuri11", monospace; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  #board svg { width:100%; height:calc(100% - 16px); display:block; }
+  .term { position:absolute; width:26px; height:34px; transform:translate(-50%, -100%); z-index:3; }
+  .term:before { content:""; position:absolute; left:2px; right:2px; top:0; height:18px; background:#111; border:2px solid #444; border-radius:2px; }
+  .term:after { content:""; position:absolute; left:6px; right:6px; top:4px; height:10px; background:#1f4f8a; transition:background .2s, box-shadow .2s; }
+  .term i { position:absolute; left:0; right:0; bottom:0; height:14px; background:#6b7280; border:2px solid #2a2f42; border-radius:2px; }
+  .term.flash:after { background:#7CFC8A; box-shadow:0 0 12px #7CFC8A; animation:blink .25s steps(2) 6; }
+  .term b { position:absolute; left:50%; top:100%; transform:translateX(-50%); font-family:"Galmuri11", monospace; font-size:8px; color:#cfd4e2; white-space:nowrap; background:rgba(0,0,0,.5); padding:0 3px; border-radius:2px; }
+  .coffee.brew i:after { content:"♨"; position:absolute; left:-2px; top:-12px; font-size:10px; color:#ddd; animation:pulse .8s infinite; }
+  .tally { display:block; font-size:9px; margin-top:2px; color:#ffcf5c; }
+  .req { font-size:10px; padding:1px 6px; border-radius:99px; background:#3b2c55; color:#d7c6ff; margin-left:4px; }
+  .desk .tag { position:absolute; left:50%; top:40px; transform:translateX(-50%); font-family:"Galmuri11", monospace; font-size:9px; color:#fff; background:rgba(0,0,0,.55); padding:0 4px; border-radius:3px; white-space:nowrap; }
+  .table .sign { position:absolute; left:50%; top:46%; z-index:2; transform:translate(-50%, -50%); font-family:"Galmuri11", monospace; font-size:10px; color:#ffffff66; white-space:nowrap; transition:color .3s; }
+  .table.live .sign { color:#fff; text-shadow:0 0 6px #ffcf5c; }
+  .agent { position:absolute; width:40px; height:44px; transform:translate(-50%, -100%); z-index:2; cursor:pointer;
+           transition:left 1.6s cubic-bezier(.45,.05,.35,1), top 1.6s cubic-bezier(.45,.05,.35,1); }
+  .agent.away { z-index:6; } .agent svg { display:block; margin:0 auto; transform-origin:50% 100%; }
+  .agent.flip svg { transform:scaleX(-1); }
+  .agent.walk svg { animation:bob .32s steps(2) infinite; } .agent.flip.walk svg { animation:bobf .32s steps(2) infinite; }
+  .agent.type svg { animation:tap 1.1s ease-in-out infinite; }
+  @keyframes bob { 50% { transform:translateY(-3px); } } @keyframes bobf { 0%,100% { transform:scaleX(-1); } 50% { transform:scaleX(-1) translateY(-3px); } }
+  @keyframes tap { 50% { transform:translateY(1px); } }
+  .agent .nm { position:absolute; left:50%; top:calc(100% + 1px); transform:translateX(-50%); font-family:"Galmuri11", monospace; font-size:9px; color:var(--gold); text-shadow:1px 1px 0 #000; white-space:nowrap; opacity:0; transition:opacity .3s; }
+  .agent.away .nm, .agent:hover .nm { opacity:1; }
+  .agent .chip { position:absolute; left:50%; top:-10px; transform:translate(-50%, 4px); font-size:9px; padding:1px 5px; border-radius:99px; white-space:nowrap; opacity:0; transition:opacity .3s, transform .3s; color:#000; font-weight:700; }
+  .agent .chip.on { opacity:1; transform:translate(-50%, 0); } .agent.say .chip { opacity:0; }
+  .chip.yes { background:#ff7a85; } .chip.no { background:#6db7ff; } .chip.mid { background:#c9ccd6; } .chip.dec { background:var(--gold); }
+  .agent.speak:before { content:""; position:absolute; left:50%; bottom:-4px; width:44px; height:12px; margin-left:-22px; border-radius:50%; background:rgba(255,207,92,.5); filter:blur(1px); }
+  .bub { position:absolute; left:50%; bottom:calc(100% + 6px); transform:translate(-50%, 6px) scale(.96); background:#fff; color:#1b1d26; font-size:11px; line-height:1.4;
+         padding:5px 8px; border-radius:8px; width:max-content; max-width:190px; opacity:0; pointer-events:none; transition:opacity .25s, transform .25s; z-index:20; box-shadow:0 3px 10px rgba(0,0,0,.35); }
+  .bub:after { content:""; position:absolute; left:50%; bottom:-5px; margin-left:-5px; border:5px solid transparent; border-top-color:#fff; border-bottom:0; }
+  .bub.on { opacity:1; transform:translate(-50%, 0) scale(1); }
+  .bub.think { background:#e9f1ff; color:#4a5068; font-style:italic; } .bub.think:after { border-top-color:#e9f1ff; }
+  .bub.below { bottom:auto; top:calc(100% + 16px); } .bub.below:after { bottom:auto; top:-5px; border-top:0; border-bottom:5px solid #fff; }
+  .bub.think.below:after { border-bottom-color:#e9f1ff; }
+  .agent.say { z-index:30; }
+  .dots i { display:inline-block; width:4px; height:4px; margin:0 1px; border-radius:50%; background:#888; animation:dot 1s infinite; } .dots i:nth-child(2) { animation-delay:.15s; } .dots i:nth-child(3) { animation-delay:.3s; }
+  @keyframes dot { 50% { transform:translateY(-3px); background:#333; } }
+  #decision { position:absolute; left:50%; top:50%; width:min(92%, 430px); transform:translate(-50%, -42%) scale(.96); background:rgba(16,19,27,.96); border:1px solid #3a4160; border-radius:12px; padding:12px 14px;
+              z-index:50; opacity:0; pointer-events:none; transition:opacity .35s, transform .35s; box-shadow:0 10px 30px rgba(0,0,0,.5); }
+  #decision.on { opacity:1; transform:translate(-50%, -50%) scale(1); pointer-events:auto; }
+  #decision h4 { margin:0 0 6px; font-size:15px; } #decision .ck { display:grid; grid-template-columns:1fr 1fr; gap:3px 10px; font-size:11.5px; margin:8px 0; }
+  #decision .ck span > b { display:inline-block; width:16px; } #decision .pl { font-size:12px; color:var(--dim); line-height:1.5; }
+  #toast { position:absolute; left:50%; top:14%; transform:translate(-50%, -12px); background:#2b2240; color:#fff; font-size:12px; padding:6px 12px; border-radius:99px; opacity:0; transition:all .35s; z-index:60; white-space:nowrap; }
+  #toast.on { opacity:1; transform:translate(-50%, 0); }
+  /* 오른쪽(아래) 패널 */
+  #side { display:flex; flex-direction:column; min-height:0; background:var(--panel); }
+  #summary { display:flex; gap:8px; padding:8px 10px; border-bottom:1px solid var(--line); overflow-x:auto; scrollbar-width:none; }
+  #summary::-webkit-scrollbar { display:none; }
+  .card { background:var(--panel2); border-radius:10px; padding:7px 10px; min-width:118px; flex:none; }
+  .card .k { font-size:10.5px; color:var(--dim); white-space:nowrap; } .card .v { font-size:16px; font-weight:700; font-variant-numeric:tabular-nums; white-space:nowrap; } .card .s { font-size:11px; color:var(--dim); white-space:nowrap; }
+  .card .k, .card .v, .card .s { overflow:hidden; text-overflow:ellipsis; } .card.wide { min-width:190px; }
+  [data-go] { cursor:pointer; } .card[data-go]:hover { background:#252a3d; box-shadow:inset 0 0 0 1px #3a4160; } .card[data-go] .k:after { content:" ›"; color:#59607a; }
+  #pane .row[data-go]:hover, table.t tr[data-go]:hover, .lnk[data-go]:hover { background:#1a1e2b; } .lnk { padding:3px 2px; border-radius:6px; }
+  .av[data-go]:hover { outline:2px solid var(--gold); }
+  .table[data-go]:hover .sign { color:#fff; } .term[data-go]:hover b { color:var(--gold); } .led[data-go]:hover { border-color:#4a3d1e; }
+  header .pill[data-go]:hover { background:#262b3e; color:#fff; }
+  .acts { display:flex; gap:6px; margin-top:10px; flex-wrap:wrap; } .acts button { border:1px solid var(--line); background:var(--panel2); color:#cfd4e2; border-radius:99px; font-size:12px; padding:4px 12px; }
+  .acts button.pri { background:var(--gold); color:#000; border-color:var(--gold); }
+  #summary { mask-image:linear-gradient(90deg, #000 88%, transparent); -webkit-mask-image:linear-gradient(90deg, #000 88%, transparent); }
+  #tabs { display:flex; gap:2px; padding:4px 10px 0; border-bottom:1px solid var(--line); }
+  #tabs button { border:0; background:none; color:var(--dim); font-size:13px; padding:6px 10px 8px; border-bottom:2px solid transparent; }
+  #tabs button.on { color:#fff; border-bottom-color:var(--gold); }
+  #pane { flex:1; min-height:0; overflow:auto; padding:8px 10px 14px; font-size:13px; }
+  #pane .row { display:flex; gap:8px; padding:6px 2px; border-bottom:1px solid #1f2333; animation:in .35s ease-out; }
+  @keyframes in { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:none; } }
+  .av { width:26px; height:26px; flex:none; border-radius:7px; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:800; color:#fff; text-shadow:0 1px 1px #0008; }
+  .row .bd { min-width:0; flex:1; } .row .hd { font-size:11.5px; } .row .hd b { margin-right:4px; } .row .hd .t { color:var(--dim); font-size:10.5px; margin-left:4px; }
+  .row .tx { font-size:12.5px; color:#cfd4e2; line-height:1.45; word-break:keep-all; overflow-wrap:anywhere; }
+  .row.k-meet .tx, .row.k-decide .tx { color:#fff; } .row.k-decide { background:linear-gradient(90deg, rgba(255,207,92,.08), transparent); } .row.k-trade { background:linear-gradient(90deg, rgba(61,220,151,.08), transparent); }
+  .st { font-size:10px; padding:1px 6px; border-radius:99px; color:#000; font-weight:700; margin-left:4px; }
+  .st.yes { background:#ff7a85; } .st.no { background:#6db7ff; } .st.mid { background:#c9ccd6; } .st.dec { background:var(--gold); }
+  .mt { padding:8px 4px; border-bottom:1px solid #1f2333; cursor:pointer; } .mt:hover { background:#1a1e2b; }
+  .mt .a { font-size:13px; } .mt .b { font-size:11px; color:var(--dim); margin-top:2px; }
+  .dec { font-size:11px; font-weight:700; padding:1px 7px; border-radius:99px; }
+  .dec.buy { background:rgba(255,95,109,.18); color:var(--up); } .dec.sell { background:rgba(78,163,255,.18); color:var(--down); } .dec.wait { background:#2a2f42; color:var(--dim); } .dec.hold { background:rgba(255,207,92,.15); color:var(--gold); }
+  table.t { width:100%; border-collapse:collapse; font-size:12px; } table.t td, table.t th { padding:5px 4px; border-bottom:1px solid #1f2333; text-align:left; white-space:nowrap; } table.t th { color:var(--dim); font-weight:500; font-size:11px; }
+  .sec { font-size:12px; color:var(--gold); margin:12px 0 4px; }
+  .back { color:var(--dim); font-size:12px; border:0; background:none; padding:0 0 6px; }
+  .ckl { display:grid; grid-template-columns:1fr 1fr; gap:3px 12px; font-size:12px; margin:6px 0; background:#1a1e2b; padding:8px; border-radius:8px; }
+  #chartbox { display:flex; flex-direction:column; height:100%; min-height:260px; }
+  .cbar { display:flex; gap:4px; flex-wrap:wrap; align-items:center; margin-bottom:6px; }
+  .cbar button { border:1px solid var(--line); background:var(--panel2); color:var(--dim); border-radius:99px; font-size:11.5px; padding:3px 10px; }
+  .cbar button.on { background:var(--gold); color:#000; border-color:var(--gold); }
+  .cwrap { position:relative; flex:1; display:flex; min-height:220px; }
+  #chart { flex:1; min-height:220px; border-radius:8px; overflow:hidden; }
+  #ohlc { position:absolute; left:8px; top:6px; z-index:3; font-size:11px; line-height:1.5; color:#cfd4e2; pointer-events:none; font-variant-numeric:tabular-nums; text-shadow:0 1px 2px #000; }
+  .leg { font-size:11px; color:var(--dim); margin-top:5px; line-height:1.5; }
+  .note { font-size:10.5px; color:var(--dim); padding:6px 10px 8px; border-top:1px solid var(--line); }
+  @media (max-width: 520px) { .shelf, .sideplant { display:none; } #room:not(.coin) .coffee { left:3% !important; } .coffee { transform:translate(-50%, -100%) scale(.72); transform-origin:50% 100%; }
+    header .pill { display:none; } .note .long { display:none; } .note { padding:4px 10px 6px; text-align:center; }
+    main { grid-template-rows:minmax(300px, 50%) minmax(0, 1fr); } .desk .tag { font-size:8px; padding:0 2px; } .agent:not(.away) .nm .rl { display:none; } .bub { max-width:160px; font-size:10.5px; } }
+  @media (min-width: 980px) {
+    main { grid-template-columns:minmax(0, 1.45fr) minmax(400px, 1fr); grid-template-rows:1fr; }
+    #roomwrap { border-bottom:0; border-right:1px solid var(--line); }
+    .agent { transform:translate(-50%, -100%) scale(1.35); transform-origin:50% 100%; }
+    .desk { transform:translate(-50%, -30%) scale(1.35); }
+    .px, .coffee, .term { transform:translate(-50%, -100%) scale(1.35); transform-origin:50% 100%; } .chair { transform:translate(-50%, -60%) scale(1.35); }
+    .bub { font-size:10px; max-width:200px; } .table .sign { font-size:13px; }
+    #pane { font-size:14px; } .row .tx { font-size:13.5px; }
+    #summary { display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); max-height:154px; overflow-x:hidden; overflow-y:auto; mask-image:none; -webkit-mask-image:none; }
+    .card { min-width:0; } .card.wide { min-width:0; grid-column:span 2; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <header><span class="logo">AI 증권사</span><span class="pill" id="p-stock" data-go="room:stock"><i></i><span>주식팀</span></span><span class="pill on" data-go="room:coin"><i></i><span>코인팀 24시간</span></span><span class="pill" id="p-kr"><i></i><span>국장</span></span><span class="pill" id="p-us"><i></i><span>미장</span></span><span class="sp"></span><span id="clock"></span><a href="index.html">웹앱 ›</a></header>
+  <main>
+    <section id="roomwrap">
+      <div id="rooms"><button data-r="stock" class="on">🏢 주식팀 <span class="dim" style="font-size:11px">12명</span><span class="bdg">회의 중</span></button><button data-r="coin">🪙 코인팀 <span class="dim" style="font-size:11px">10명</span><span class="bdg">회의 중</span></button></div>
+      <div id="room"></div>
+    </section>
+    <section id="side">
+      <div id="summary"></div>
+      <div id="tabs"><button data-t="feed" class="on">업무 채널</button><button data-t="meet">회의록</button><button data-t="chart">차트</button><button data-t="book">장부</button></div>
+      <div id="pane"></div>
+      <div class="note"><span class="long">직원들은 저마다 성격·기억·성적을 가진 AI(Gemini)예요. 봇이 실제 공개 자료로 계속 일하고, 안건이 생기면 회의해서 점검표를 채운 뒤 매매해요. 화면은 봇이 올린 기록을 조금 늦게 따라가요 · 카드·줄·탁자를 누르면 해당 화면으로 · </span>모두 <b>가상</b> 장부 · AI 의견 · 투자 권유 아님</div>
+    </section>
+  </main>
+</div>
+<script>
+// ================================================================ 기본
+const $ = (s, el = document) => el.querySelector(s), $$ = (s, el = document) => [...el.querySelectorAll(s)];
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const pct = (x, d = 2) => (x == null ? "-" : `${x > 0 ? "+" : ""}${Number(x).toFixed(d)}%`);
+const cls = (x) => (x > 0 ? "up" : x < 0 ? "down" : "");
+const won = (x) => (Math.abs(x) >= 1e8 ? `${(x / 1e8).toFixed(2)}억` : `${Math.round(x / 1e4).toLocaleString()}만`) + "원";
+const pxd = (x) => { x = Math.abs(x || 0); return x >= 10000 ? 1 : x >= 10 ? 2 : x >= 1 ? 4 : 5; };      // 가격 자릿수 (DOGE·XRP 같은 싼 코인도 보이게)
+const usd = (x, d) => (x < 0 ? "-" : "") + "$" + Math.abs(Number(x)).toLocaleString("en-US", { maximumFractionDigits: d ?? pxd(x) });
+const COINS = ["BTC", "ETH", "SOL", "XRP", "BNB", "DOGE", "ADA", "AVAX", "LINK", "SUI", "LTC", "TRX"];
+const coinList = () => { const ks = Object.keys((O && O.coin.metrics) || {}); return COINS.concat(ks.filter((k) => !COINS.includes(k))); };   // 코인팀 6개는 늘 (자료가 아직 없어도 차트는 볼 수 있게)
+const hotCoins = (n) => { const m = (O && O.coin.metrics) || {}; return Object.keys(m).sort((a, b) => Math.abs(m[b].score || 0) - Math.abs(m[a].score || 0)).slice(0, n); };
+let speed = 1;                                   // 회의 다시 보기 2배속 (말하는 속도만 · 걷기는 늘 제 속도)
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const talk = (ms) => new Promise((r) => setTimeout(r, ms / speed));
+const kst = (ts) => { const k = new Date(ts * 1000 + 9 * 3600e3); return `${String(k.getUTCHours()).padStart(2, "0")}:${String(k.getUTCMinutes()).padStart(2, "0")}`; };
+const kday = (ts) => { const k = new Date(ts * 1000 + 9 * 3600e3); return `${k.getUTCMonth() + 1}/${k.getUTCDate()}`; };
+const ST = { 찬성: "yes", 반대: "no", 중립: "mid", 결정: "dec" };
+const DEC = { 매수: "buy", 진입: "buy", "조건부 진입": "hold", "조건부 매수": "hold", 매도: "sell", 정리: "sell", "일부 매도": "sell", 유지: "hold", 관망: "wait" };
+let O = null, room = "stock", tab = "feed", busy = { stock: false, coin: false }, seenMeet = 0, feedCursor = 0, queue = [], openMeet = null;
+try { seenMeet = +localStorage.getItem("office2_meet") || 0; } catch (e) {}
+
+// ================================================================ 직원 (도트 · 자리)
+const LOOK = {
+  scout: ["#2b1d0e", "#e67e22", "#fff"], nova: ["#3a2a1a", "#3f7bd9"], flow: ["#14532d", "#16a085"], fund: ["#555", "#7f8c8d", "#f1c40f"],
+  chart: ["#222", "#2e9e6b"], macro: ["#9a9a9a", "#c0392b"], vibe: ["#c94f8a", "#9b59b6"], bull: ["#d4a017", "#27ae60"], bear: ["#5d4037", "#b03a2e"],
+  trade: ["#1a1a1a", "#34495e", "#f1c40f"], guard: ["#ecf0f1", "#2c3e50", "#e74c3c"], boss: ["#444", "#1f1f1f", "#d35400"],
+  orbit: ["#00bcd4", "#263238", "#00e5ff"], deriv: ["#6a1b9a", "#4527a0"], tape: ["#212121", "#ff7043"], wave: ["#1565c0", "#00897b"],
+  pulse: ["#e91e63", "#5c6bc0"], atlas: ["#795548", "#3949ab", "#90caf9"], contra: ["#b71c1c", "#212121", "#ef5350"], exec: ["#000", "#37474f", "#ffd600"], shield: ["#eceff1", "#455a64", "#26c6da"], chief: ["#3e2723", "#111", "#ffb300"],
+};
+const SEAT = {
+  stock: { scout: [14, 25], nova: [38, 25], flow: [62, 25], fund: [86, 25], chart: [11, 52], macro: [11, 76], vibe: [89, 52], bear: [89, 76], bull: [16, 90], trade: [39, 90], guard: [61, 90], boss: [84, 90] },
+  coin: { orbit: [11, 28], deriv: [30.5, 28], tape: [50, 28], wave: [69.5, 28], pulse: [89, 28], atlas: [11, 90], contra: [30.5, 90], exec: [50, 90], shield: [69.5, 90], chief: [89, 90] },
+};
+function sprite(hair, shirt, acc) {
+  const P = ["....hhhhhhh.....", "...hhhhhhhhh....", "..hhsssssshh....", "...ssEssEsss....", "...sssssssss....", "....ssmmsss.....", ".....ssss.......",
+    "...aattttttaa...", "..sttttttttts...", "..sttttttttts...", "..sttttttttts...", "...tttttttttt...", "...pppp..pppp...", "...pppp..pppp...", "...kkkk..kkkk..."];
+  const col = { h: hair, s: "#f5cfa5", E: "#222", m: "#c4604f", t: shirt, a: acc || shirt, p: "#2e3350", k: "#151515" };
+  let r = ""; P.forEach((row, y) => [...row].forEach((c, x) => { if (col[c]) r += `<rect x="${x}" y="${y}" width="1.02" height="1.02" fill="${col[c]}"/>`; }));
+  return `<svg width="40" height="38" viewBox="0 0 16 15" shape-rendering="crispEdges">${r}</svg>`;
+}
+const A = {};                                  // id → {el, x, y, home}
+// ================================================================ 사무실 배경 (픽셀 · A안)
+const R_ = (x, y, w, h, c, k) => `<rect x="${x}" y="${y}" width="${w}" height="${h}"${c ? ` fill="${c}"` : ""}${k ? ` class="${k}"` : ""}/>`;
+const PAL = { stock: { top: "#8a5a34", hi: "#a87146", front: "#5a3b24", leg: "#4a2e18", chair: "#3e4a6b", chairHi: "#55638a", table: ["#5a3b24", "#9a6a40", "#b07c4c"], rug: ["#7c3f58", "#e7b75f"] },
+              coin: { top: "#4f5d7a", hi: "#6a7896", front: "#2a3448", leg: "#1b2232", chair: "#1f2a40", chairHi: "#33405e", table: ["#1b2232", "#3d4b68", "#4c5b7c"], rug: ["#1f5a6b", "#7fe3ff"] } };
+function deskSvg() {
+  const c = PAL[room];
+  return `<svg width="62" height="38" viewBox="0 0 31 19" shape-rendering="crispEdges">${R_(0, 17, 31, 2, "rgba(0,0,0,.25)")}${R_(1, 12, 2, 6, c.leg)}${R_(28, 12, 2, 6, c.leg)}`
+    + `${R_(0, 7, 31, 6, c.top)}${R_(0, 7, 31, 2, c.hi)}${R_(0, 12, 31, 1, c.front)}`
+    + `${R_(1, 0, 9, 6, "#1d1f26")}${R_(2, 1, 7, 4, null, "scr")}${R_(5, 6, 2, 1, "#444")}${R_(21, 0, 9, 6, "#1d1f26")}${R_(22, 1, 7, 4, null, "scr")}${R_(24, 6, 2, 1, "#444")}`
+    + `${R_(12, 9, 7, 2, "#dcdcdc")}${R_(25, 8, 2, 2, "#e9c46a")}${R_(5, 8, 4, 3, "#fafafa")}</svg>`;
+}
+function chairSvg() { const c = PAL[room]; return `<svg width="24" height="18" viewBox="0 0 12 9" shape-rendering="crispEdges">${R_(1, 0, 10, 4, c.chairHi)}${R_(0, 3, 12, 4, c.chair)}${R_(1, 7, 2, 2, "#222")}${R_(9, 7, 2, 2, "#222")}</svg>`; }
+function plantSvg() { return `<svg width="26" height="34" viewBox="0 0 13 17" shape-rendering="crispEdges">${R_(3, 11, 7, 6, "#b0613a")}${R_(3, 11, 7, 1, "#cf7a4d")}<circle cx="6.5" cy="7" r="5" fill="#3f8f4f"/><circle cx="3.5" cy="4.5" r="3" fill="#57b36a"/><circle cx="9.5" cy="4" r="2.6" fill="#57b36a"/><circle cx="6.5" cy="2" r="2" fill="#6cc47c"/></svg>`; }
+function shelfSvg() {
+  const cs = ["#e8505b", "#3a86c8", "#e9c46a", "#7ac67a", "#b36bd6", "#f08a4b"];
+  let g = R_(0, 0, 22, 34, "#6b4426") + R_(2, 2, 18, 30, "#4a2e18");
+  for (let r = 0; r < 3; r++) { g += R_(2, 11 + r * 10, 18, 1, "#6b4426"); for (let b = 0; b < 6; b++) g += R_(3 + b * 3, 3 + r * 10, 2, 8 - (b % 3), cs[(b + r) % 6]); }
+  return `<svg width="33" height="51" viewBox="0 0 22 34" shape-rendering="crispEdges">${g}</svg>`;
+}
+function coffeeSvg() {
+  return `<svg width="44" height="44" viewBox="0 0 22 22" shape-rendering="crispEdges">${R_(0, 12, 22, 9, "#5a3b24")}${R_(0, 11, 22, 2, "#8a5a34")}${R_(2, 2, 9, 10, "#333")}${R_(4, 4, 5, 2, "#e8505b")}${R_(5, 8, 3, 3, "#fafafa")}`
+    + `${R_(13, 7, 3, 4, "#fafafa")}${R_(17, 8, 3, 3, "#c08a5a")}<g class="steam">${R_(6, 0, 1, 2, "#ddd")}${R_(7, -2, 1, 2, "#eee")}</g></svg>`;
+}
+function windowSvg() {
+  const night = new Date(Date.now() + 9 * 3600e3).getUTCHours(), dark = night < 6 || night >= 19;
+  const sky = dark ? ["#13204a", "#2a3a6e"] : ["#6fb5ff", "#cfe8ff"];
+  return `<svg viewBox="0 0 52 30" preserveAspectRatio="none" shape-rendering="crispEdges"><defs><linearGradient id="skyW" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${sky[0]}"/><stop offset="1" stop-color="${sky[1]}"/></linearGradient></defs>`
+    + `${R_(0, 0, 52, 30, "#7a5534")}<rect x="2" y="2" width="48" height="24" fill="url(#skyW)"/>`
+    + (dark ? `${R_(10, 6, 1, 1, "#fff")}${R_(30, 9, 1, 1, "#fff")}${R_(40, 5, 1, 1, "#fff")}<circle cx="38" cy="12" r="3" fill="#f6f1c7"/>` : `${R_(8, 8, 10, 3, "#fff")}${R_(6, 10, 14, 3, "#fff")}${R_(32, 13, 9, 3, "#fff")}`)
+    + `${R_(25, 2, 2, 24, "#7a5534")}${R_(2, 13, 48, 2, "#7a5534")}${R_(0, 26, 52, 4, "#a0714a")}</svg>`;
+}
+function rugSvg() { const c = PAL[room].rug; return `<svg viewBox="0 0 100 60" preserveAspectRatio="none"><ellipse cx="50" cy="30" rx="49" ry="29" fill="${c[0]}"/><ellipse cx="50" cy="30" rx="44" ry="25" fill="none" stroke="${c[1]}" stroke-width="1.2" stroke-dasharray="3 2"/></svg>`; }
+function tableSvg() { const c = PAL[room].table; return `<svg viewBox="0 0 100 60" preserveAspectRatio="none"><ellipse cx="50" cy="34" rx="49" ry="25" fill="${c[0]}"/><ellipse cx="50" cy="29" rx="49" ry="25" fill="${c[1]}"/><ellipse cx="50" cy="28" rx="42" ry="19" fill="${c[2]}"/><rect x="16" y="30" width="8" height="5" fill="#fafafa"/><rect x="76" y="31" width="6" height="4" fill="#ffe08a"/></svg>`; }   // 서류·컵은 가장자리 (가운데 글씨를 안 가리게)
+function buildRoom() {
+  const R = $("#room"); R.className = room === "coin" ? "coin" : ""; R.innerHTML = '<div class="wallbar"></div><div class="lights"></div>';
+  R.insertAdjacentHTML("beforeend", `<div class="win">${windowSvg()}</div><div class="rug">${rugSvg()}</div>`);
+  [[3, 26], [97, 26]].forEach(([x, y]) => R.insertAdjacentHTML("beforeend", `<div class="px shelf" style="left:${x}%;top:${y}%;z-index:1">${shelfSvg()}</div>`));
+  R.insertAdjacentHTML("beforeend", '<div class="led" data-go="tab:chart" title="차트 보기"><div class="run" id="led"></div></div><div class="wclock" id="wclock"></div><div class="night" id="night"><span></span></div>');
+  [[3, 40, "sideplant"], room === "stock" ? [72.5, 99, ""] : [79.5, 99, "sideplant"]].forEach(([x, y, k]) => R.insertAdjacentHTML("beforeend", `<div class="px ${k}" style="left:${x}%;top:${y}%;z-index:2">${plantSvg()}</div>`));   // 책상 사이 · 문(가운데 아래)은 비워 둠
+  seats(Object.keys(SEAT[room]).length).forEach(([x, y]) => R.insertAdjacentHTML("beforeend", `<div class="chair" style="left:${x}%;top:${y}%">${chairSvg()}</div>`));
+  R.insertAdjacentHTML("beforeend", `<div id="board"><div class="bt"></div><svg viewBox="0 0 200 60" preserveAspectRatio="none"></svg></div>`
+    + `<div class="term" id="term" data-go="tab:book" title="장부 보기" style="left:${termPos()[0]}%;top:${termPos()[1]}%"><i></i><b>주문</b></div><div class="coffee" id="coffee" style="left:${coffeePos()[0]}%;top:${coffeePos()[1]}%">${coffeeSvg()}</div>`);
+  R.insertAdjacentHTML("beforeend", `<div class="table" id="tbl" data-go="lastmeet" title="최근 회의록">${tableSvg()}<span class="sign">${room === "stock" ? "주식팀 회의 탁자" : "코인팀 회의 탁자"}</span></div><div id="decision"></div><div id="toast"></div><div id="ctrl"><button id="spd">⏩ 말 2배속</button></div>`);
+  $("#spd").onclick = () => { speed = speed === 1 ? 2 : 1; $("#spd").classList.toggle("on", speed === 2); };
+  for (const k in A) delete A[k];
+  Object.entries(SEAT[room]).forEach(([id, [x, y]]) => {
+    const ag = (O && O.agents[id]) || { name: id.toUpperCase(), role: "" };
+    R.insertAdjacentHTML("beforeend", `<div class="desk" id="d-${id}" style="left:${x}%;top:${y}%">${deskSvg()}<div class="tag">${esc(ag.name)}${ag.calls ? ` <span style="color:#ffcf5c">${ag.hits}/${ag.calls}</span>` : ""}</div></div>`);
+    const el = document.createElement("div"); el.className = "agent type"; el.dataset.id = id;
+    el.innerHTML = sprite(...LOOK[id]) + `<div class="chip"></div><div class="nm">${esc(ag.name)}<span class="rl"> · ${esc(ag.role)}</span></div><div class="bub"></div>`;
+    el.style.left = x + "%"; el.style.top = (y + 1) + "%"; el.onclick = () => profile(id);
+    el.title = `${ag.name} · ${ag.role}${ag.calls ? ` · 적중 ${ag.hits}/${ag.calls}` : ""}${ag.thought ? `\n생각: ${ag.thought}` : ""}`;
+    el.addEventListener("transitionend", (e) => { if (e.target === el && A[id]) arrived(A[id]); });
+    R.appendChild(el); A[id] = { el, x, y: y + 1, home: [x, y + 1] };
+  });
+  led(); dayNight();
+}
+let D = {};
+function led() {
+  const el = $("#led"); if (!el) return;
+  const card = (l) => ((D.market || {}).cards || []).find((c) => c.label === l);
+  let items;
+  if (room === "stock") items = ["코스피", "코스닥", "S&P500", "나스닥", "다우", "원/달러", "미국채 10년", "VIX 공포지수", "WTI 유가", "금"].map((l) => { const c = card(l); return c ? `${l} ${c.value} <b class="${cls(c.change)}">${pct(c.change)}</b>` : ""; });
+  else { const m = (O && O.coin.metrics) || {}; items = hotCoins(6).map((k) => m[k] ? `${k} ${usd(livePx[k] || m[k].price)} <b class="${cls(m[k].chg24)}">${pct(m[k].chg24)}</b> 펀딩 ${m[k].funding ?? "-"}% · 점수 ${m[k].score > 0 ? "+" : ""}${m[k].score}` : "");
+    if (O && O.coin.fng) items.push(`공포탐욕 ${O.coin.fng.value} ${esc(O.coin.fng.label)}`); }
+  const t = items.filter(Boolean).join("   ·   ");
+  if (el.dataset.t !== t) { el.dataset.t = t; el.innerHTML = t || "시세 불러오는 중"; }
+}
+function dayNight() {
+  const h = new Date(Date.now() + 9 * 3600e3).getUTCHours(), off = room === "stock" && h < 7 && !busy.stock;   // 밤에 올린 안건 회의는 불 켜고
+  const n = $("#night"); if (!n) return;
+  n.classList.toggle("on", off); $("span", n).textContent = off ? "🌙 주식팀 퇴근 · 07:00 출근 (보유 종목 감시는 계속)" : "";
+  $("#room").classList.toggle("late", room === "coin" && (h < 7 || h >= 22));
+  const was = present[room];
+  if (was === undefined) {                                          // 이 방을 처음 열면: 근무 중이면 문에서 걸어 들어와 자리로
+    present[room] = !off;
+    if (off) Object.values(A).forEach((x) => (x.el.style.visibility = "hidden"));
+    else arrive();
+  } else if (was && off) {                                          // 퇴근: 문까지 걸어간 뒤 사라짐
+    present[room] = false; leave();
+  } else if (!was && !off) {                                        // 출근: 문에서 걸어 들어옴
+    present[room] = true; arrive();
+  } else if (off && Date.now() > leavingUntil && !gather.stock) Object.values(A).forEach((x) => (x.el.style.visibility = "hidden"));   // 걸어 나가는 중엔 기다림
+  const w = $("#wclock"); if (w) w.textContent = kst(Date.now() / 1000);
+}
+const present = {}, DOOR = [50, 99], BOARD_SPOT = [50, 22], WINDOW_SPOT = [10, 17];
+const termPos = () => (room === "coin" ? [96, 64] : [96, 42]);       // 코인팀 방은 옆줄 책상이 없어 가운데 옆이 비어 있음
+const coffeePos = () => (room === "coin" ? [5, 64] : [5, 99]);
+const meetingOn = () => busy[room] || !!gather[room];          // 회의 중이거나 소집돼 모이는 중
+let leavingUntil = 0;
+function placeAt(id, x, y) { const a = A[id]; a.el.style.transition = "none"; a.x = x; a.y = y; a.el.style.left = x + "%"; a.el.style.top = y + "%"; void a.el.offsetWidth; a.el.style.transition = ""; }
+function arrive() {
+  Object.keys(A).forEach((id, i) => {
+    placeAt(id, ...DOOR); A[id].el.style.visibility = ""; A[id].el.classList.remove("type");
+    setTimeout(() => { if (!meetingOn()) goHome(id); }, 250 + i * 280);      // 그사이 회의가 시작됐으면 탁자로 가는 걸 덮지 않음
+  });
+}
+function leave() {
+  const ids = Object.keys(A);
+  leavingUntil = Date.now() + ids.length * 220 + 2200;
+  ids.forEach((id, i) => setTimeout(() => { quiet(id); moveTo(id, ...DOOR); }, i * 220));
+  setTimeout(() => { if (!present[room]) ids.forEach((id) => A[id] && (A[id].el.style.visibility = "hidden")); }, ids.length * 220 + 1900);
+}
+function moveTo(id, x, y) {
+  const a = A[id]; if (!a) return;
+  if (Math.abs(a.x - x) < 0.5 && Math.abs(a.y - y) < 0.5) return;
+  const home = x === a.home[0] && y === a.home[1];
+  a.el.classList.toggle("flip", x < a.x); a.el.classList.add("walk"); a.el.classList.remove("type"); a.el.classList.toggle("away", !home);
+  a.x = x; a.y = y; a.el.style.left = x + "%"; a.el.style.top = y + "%";
+  a.face = null; clearTimeout(a.w); a.w = setTimeout(() => arrived(a), 1750);   // transitionend 이 안 오는 경우(백그라운드 탭)
+  clearTimeout(a.h); if (home) a.h = setTimeout(() => { a.el.classList.add("type"); a.el.classList.remove("flip", "away"); }, 1700);
+}
+const goHome = (id) => A[id] && moveTo(id, ...A[id].home);
+function say(id, html, think, ms) {
+  const a = A[id]; if (!a) return;
+  const b = $(".bub", a.el); b.innerHTML = html; b.classList.toggle("think", !!think); b.classList.remove("below"); b.style.marginLeft = "0px";
+  a.el.classList.add("say");
+  const sid = (a.sid = (a.sid || 0) + 1);
+  requestAnimationFrame(() => {
+    if (a.sid !== sid || !a.el.classList.contains("say")) return;      // 그사이 조용해졌으면 (뒤에 있던 탭에서 돌아올 때 말풍선이 한꺼번에 뜨지 않게)
+    b.classList.add("on");
+    const R = $("#room").getBoundingClientRect(), r = b.getBoundingClientRect();
+    if (r.top < R.top + 30) b.classList.add("below");
+    const r2 = b.getBoundingClientRect();
+    if (r2.left < R.left + 4) b.style.marginLeft = (R.left + 4 - r2.left) + "px"; else if (r2.right > R.right - 4) b.style.marginLeft = (R.right - 4 - r2.right) + "px";
+  });
+  clearTimeout(a.t); if (ms) a.t = setTimeout(() => quiet(id), ms);
+}
+function quiet(id) { const a = A[id]; if (!a) return; a.sid = (a.sid || 0) + 1; $(".bub", a.el).classList.remove("on"); a.el.classList.remove("speak"); clearTimeout(a.q); a.q = setTimeout(() => a.el.classList.remove("say"), 260); }
+function chip(id, stance) { const a = A[id]; if (!a) return; const c = $(".chip", a.el); c.className = "chip" + (stance ? ` on ${ST[stance] || "mid"}` : ""); c.textContent = stance || ""; }
+function glow(id) { const d = $("#d-" + id); if (!d) return; d.classList.add("hot"); clearTimeout(d.t); d.t = setTimeout(() => d.classList.remove("hot"), 2600); }
+function toast(t) { const el = $("#toast"); if (!el) return; el.textContent = t; el.classList.add("on"); clearTimeout(el.t); el.t = setTimeout(() => el.classList.remove("on"), 3500); }
+const short = (t, n = 64) => (t.length > n ? t.slice(0, n) + "…" : t);
+const color = (id) => (LOOK[id] || ["#888", "#888"])[1];
+
+// ================================================================ 업무 채널 (실제 기록을 시간 순서대로 하나씩)
+let filt = "all";
+const FILT = { all: ["전체", null], meet: ["회의·결정", ["meet", "decide"]], trade: ["매매", ["trade"]], work: ["업무", ["work"]], watch: ["감시", ["watch"]] };
+const showsIn = (f) => (f.team === room || f.kind === "decide" || f.kind === "trade") && (!FILT[filt][1] || FILT[filt][1].includes(f.kind));
+function goOf(text, team) {                       // 글에 나온 회의 번호·종목 → 누르면 갈 곳
+  const mm = text.match(/회의 #(\d+)/);
+  if (mm && O.meetings.some((m) => m.id === +mm[1])) return `meet:${mm[1]}`;
+  if (team === "coin") { const c = text.match(/^([A-Z]{2,5})\b/); return c && COINS.includes(c[1]) ? `chart:${c[1]}` : ""; }
+  const names = [...O.stock.pos, ...(O.stock.pend || []), ...O.stock.watch, ...O.meetings.filter((m) => m.team === "stock")].map((x) => [x.symbol, x.name]).filter(([s, n]) => s && n);
+  const hit = names.find(([, n]) => text.includes(n));
+  return hit ? `chart:${hit[0]}` : "";
+}
+function feedRow(f) {
+  const ag = O.agents[f.who] || { name: f.who, role: "" }, go = f.team === room ? goOf(f.text, f.team) : (/회의 #/.test(f.text) ? `room:${f.team}` : "");
+  return `<div class="row k-${f.kind}"${go ? ` data-go="${go}"` : ""}><div class="av" data-go="agent:${f.who}" style="background:${color(f.who)}">${esc(ag.name.slice(0, 2))}</div><div class="bd"><div class="hd"><b>${esc(ag.name)}</b><span class="dim">${esc(ag.role)}</span><span class="t">${kst(f.t)}${f.team !== room ? " · " + (f.team === "coin" ? "코인팀" : "주식팀") : ""}</span></div><div class="tx">${esc(f.text)}</div></div></div>`;
+}
+function renderFeed() {
+  const list = O.feed.filter((f) => f.t <= feedCursor && showsIn(f)).slice(-80).reverse();
+  $("#pane").innerHTML = `<div class="filters">${Object.entries(FILT).map(([k, [n]]) => `<button data-f="${k}" class="${k === filt ? "on" : ""}">${n}</button>`).join("")}</div><div id="feedlist">`
+    + (list.map(feedRow).join("") || '<div class="dim">아직 기록이 없어요</div>') + "</div>";
+  $$("[data-f]", $("#pane")).forEach((b) => (b.onclick = () => { filt = b.dataset.f; renderFeed(); }));
+}
+function popAt(id, text, kind) {
+  const a = A[id], R = $("#room"); if (!a || !R) return;
+  const el = document.createElement("div"); el.className = `pop ${kind}`; el.textContent = text;
+  el.style.left = a.x + "%"; el.style.top = (a.y - 9) + "%"; R.appendChild(el); setTimeout(() => el.remove(), 3000);
+}
+let gather = { stock: null, coin: null };
+function gatherFor(team, id) {                     // 회의 소집 기록이 오면 결과가 올 때까지 탁자에 모여 '회의 중'
+  if (room !== team || busy[team]) return;
+  const ids = Object.keys(A), st = seats(ids.length);
+  ids.forEach((x) => { if (A[x].el.style.visibility === "hidden") { placeAt(x, ...DOOR); A[x].el.style.visibility = ""; } });
+  ids.forEach((x, i) => setTimeout(() => moveTo(x, st[i][0], st[i][1]), i * 90));
+  const t = $("#tbl"); if (t) { t.classList.add("live"); $(".sign", t).textContent = `#${id} 회의 중…`; }
+  clearTimeout(gather[team] && gather[team].t);
+  let k = 0;
+  const think = setInterval(() => { if (busy[team] || liveBusy[team] || room !== team) return; const x = ids[k++ % ids.length]; say(x, '<span class="dots"><i></i><i></i><i></i></span>', true, 2200); }, 2600);
+  gather[team] = { id, think, t: setTimeout(() => endGather(team), 6 * 60000) };
+}
+function endGather(team, keep) {
+  const g = gather[team]; if (!g) return;
+  clearInterval(g.think); clearTimeout(g.t); gather[team] = null;
+  if (keep || room !== team) return;
+  const t = $("#tbl"); if (t) { t.classList.remove("live"); $(".sign", t).textContent = team === "stock" ? "주식팀 회의 탁자" : "코인팀 회의 탁자"; }
+  if (team === "stock" && new Date(Date.now() + 9 * 3600e3).getUTCHours() < 7) leave();   // 밤이면 다시 문으로
+  else Object.keys(A).forEach((x, i) => setTimeout(() => goHome(x), i * 120));
+}
+function playFeedItem(f) {
+  feedCursor = Math.max(feedCursor, f.t);
+  if (tab === "feed" && showsIn(f) && $("#feedlist")) $("#feedlist").insertAdjacentHTML("afterbegin", feedRow(f));
+  if (f.team !== room || busy[room] || !A[f.who]) return;
+  const mm = f.text.match(/회의 #(\d+) 소집/);
+  if (mm) { gatherFor(f.team, +mm[1]); say(f.who, `<b>${esc(short(f.text, 80))}</b>`, false, 5000); return; }
+  if (f.kind === "trade") {                        // 체결·정리: 금액이 떠오름
+    const usdM = f.text.match(/→ ([+-][\d,.]+) USDT/), pctM = f.text.match(/([+-]\d+(?:\.\d+)?)%\)?(?!.*%)/);
+    const v = usdM ? parseFloat(usdM[1].replace(/,/g, "")) : pctM ? parseFloat(pctM[1]) : null;
+    if (v != null && /정리|손절|익절|청산/.test(f.text) && !/조건부/.test(f.text) && !meetingOn()) {     // 리스크 담당이 단말기로 걸어가 정리 → 금액이 떠오름 → 자리로
+      const lbl = usdM ? `${v > 0 ? "+" : ""}${usdM[1].replace(/^\+/, "")} USDT` : `${v > 0 ? "+" : ""}${v}%`;
+      (async () => { await toTerminal(f.who, v > 0 ? "익절 정리" : "손절 정리", v > 0 ? "win" : "loss"); popAt(f.who, lbl, v > 0 ? "win" : "loss"); await sleep(600); if (!meetingOn()) goHome(f.who); })();
+      return;
+    }
+    else if (/손절선 (옮김|올림)/.test(f.text)) popAt(f.who, "🛡 손절선 이동", "go");
+  }
+  if (f.kind === "decide" && /결정: (진입|매수)/.test(f.text)) popAt(f.who, "체결 ✓", "go");
+  if (f.kind === "trade" && /조건부 (진입|매수) 체결/.test(f.text)) popAt(f.who, "⏳→ 체결 ✓", "go");
+  glow(f.who);
+  if (f.kind === "work" || f.kind === "watch") say(f.who, esc(short(f.text, 70)), false, 5200);
+  else say(f.who, `<b>${esc(short(f.text, 80))}</b>`, false, 6500);
+}
+let pump = null;
+function schedule() {                                    // 다음 업로드(약 10~15분) 전까지 고르게 나눠 보여 줌
+  clearTimeout(pump);
+  if (!queue.length) return;
+  const gap = Math.max(2500, Math.min(15000, 110000 / queue.length));     // 다음 기록이 오기 전(약 2분)에 다 보여 줌
+  pump = setTimeout(() => { playFeedItem(queue.shift()); schedule(); }, gap);
+}
+
+// ================================================================ 회의 다시 보기 (탁자로 모여 차례로 말하고, 점검표·결정 카드)
+function seats(n) {
+  const cy = room === "coin" ? 60 : 58, out = [];
+  for (let i = 0; i < n; i++) { const a = Math.PI * 2 * i / n - Math.PI / 2; out.push([50 + Math.cos(a) * 27, cy + 2 + Math.sin(a) * 19]); }
+  return out;
+}
+async function showBoard(m) {                      // 벽 화면: 안건 종목 차트 (주식 일봉 3달 · 코인 1시간 48개)
+  const b = $("#board"); if (!b) return;
+  $(".bt", b).textContent = `#${m.id} ${m.name} — ${(m.memo && m.memo.thesis) || (m.why || []).slice(0, 2).join(" · ")}`;
+  let c = [];
+  try {
+    if (m.team === "stock") c = (await fetch(`stocks/${encodeURIComponent(m.symbol)}.json`).then((r) => r.json())).bars.slice(-63).map((x) => x[4]);
+    else c = (await fetch(`https://fapi.binance.com/fapi/v1/klines?symbol=${m.symbol}USDT&interval=1h&limit=48`).then((r) => r.json())).map((x) => +x[4]);
+  } catch (e) {}
+  if (c.length > 2) {
+    const lo = Math.min(...c), hi = Math.max(...c), up = c[c.length - 1] >= c[0];
+    const pts = c.map((v, i) => `${(i / (c.length - 1) * 196 + 2).toFixed(1)},${(56 - (v - lo) / (hi - lo || 1) * 50).toFixed(1)}`).join(" ");
+    $("svg", b).innerHTML = `<polyline fill="none" stroke="${up ? "#ff5f6d" : "#4ea3ff"}" stroke-width="2" points="${pts}"/><circle cx="198" cy="${(56 - (c[c.length - 1] - lo) / (hi - lo || 1) * 50).toFixed(1)}" r="3" fill="#fff"/>`;
+  } else $("svg", b).innerHTML = "";
+  b.classList.add("on");
+}
+const hideBoard = () => { const b = $("#board"); if (b) b.classList.remove("on"); };
+function tally(m, upto) {                           // 탁자 위 실시간 찬반
+  const t = $("#tbl"); if (!t) return;
+  const c = { 찬성: 0, 반대: 0, 중립: 0 }; upto.forEach((x) => { if (c[x] != null) c[x]++; });
+  $(".sign", t).innerHTML = `#${m.id} ${esc(m.name)}<span class="tally">찬성 ${c["찬성"]} · 반대 ${c["반대"]} · 중립 ${c["중립"]}</span>`;
+}
+async function toTerminal(id, label, kind) {        // 주문 단말기로 걸어가 체결
+  if (!A[id]) return;
+  moveTo(id, termPos()[0] - 5, termPos()[1] + 4); await sleep(1900);
+  faceTo(id, termPos()[0]); const t = $("#term"); if (t) { t.classList.remove("flash"); void t.offsetWidth; t.classList.add("flash"); }
+  say(id, label, false, 2200); await sleep(1300); popAt(id, label, kind); await sleep(1400);
+}
+function faceTo(id, x) {                            // 그쪽을 바라봄 · 걷는 중이면 도착한 뒤에
+  const a = A[id]; if (!a) return;
+  if (a.el.classList.contains("walk")) { a.face = x; return; }
+  a.face = null; a.el.classList.toggle("flip", x < a.x);
+}
+function arrived(a) { a.el.classList.remove("walk"); if (a.face != null) { a.el.classList.toggle("flip", a.face < a.x); a.face = null; } }
+const AGREE = ["맞아요", "그 말이 맞아", "동의해요", "좋은 지적이야"], DISAGREE = ["음… 글쎄", "그건 아니지", "다시 봐야 해", "난 반대야"], NEUTRAL = ["듣고 있어요", "흠…", "계속해 봐", "음…"];
+const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+async function playMeeting(m) {
+  if (busy[m.team]) return; busy[m.team] = true;
+  const btn = $(`#rooms [data-r="${m.team}"]`); btn.classList.add("meet");
+  endGather(m.team, true);
+  try {
+    if (room !== m.team) { setRoom(m.team); await sleep(600); }
+    dayNight();
+    toast(`${m.kind === "긴급 안건" ? "🚨 긴급 " : ""}회의 #${m.id} · ${m.name} (${m.kind})`);
+    if ($("#ctrl")) $("#ctrl").classList.add("on");
+    const spoke = [...new Set(m.talk.map((t) => t.who))].filter((id) => A[id]);
+    const who = [...spoke, ...Object.keys(A).filter((id) => !spoke.includes(id))];   // 팀 전원이 탁자에 · 발언이 빠진 직원도 앉아서 들음
+    const night = m.team === "stock" && new Date(Date.now() + 9 * 3600e3).getUTCHours() < 7;
+    const skip = Math.min(liveShown[m.id] || 0, m.talk.length);       // 실시간 중계로 이미 본 발언은 건너뛰고 이어서
+    Object.keys(A).forEach((id) => { quiet(id); if (!skip) chip(id, null); if (A[id].el.style.visibility === "hidden") { placeAt(id, ...DOOR); A[id].el.style.visibility = ""; } });
+    let seatOf, pres = null;
+    const tbl = $("#tbl"); tbl.classList.add("live");
+    if (skip) {                                                        // 이미 탁자에 모여 있음 → 그 자리 그대로
+      seatOf = Object.fromEntries(who.map((id) => [id, [A[id].x, A[id].y]]));
+    } else {
+      const st = seats(who.length); seatOf = Object.fromEntries(who.map((id, i) => [id, st[i]]));
+      pres = A[m.proposer] ? m.proposer : null;                        // 안건을 올린 직원은 벽 화면 앞으로
+      who.forEach((id, i) => setTimeout(() => moveTo(id, ...(id === pres ? BOARD_SPOT : st[i])), i * 140));
+      tally(m, []);
+      showBoard(m);
+      await sleep(who.length * 140 + 1900);                            // 걷기는 늘 끝까지 (2배속이어도 그대로)
+      who.forEach((id) => faceTo(id, 50));                             // 앉으면 탁자 쪽을 봄
+      if (pres) who.forEach((id) => id !== pres && faceTo(id, BOARD_SPOT[0]));
+      await sleep(500);
+    }
+    const stance = {}, said = [];
+    m.talk.slice(0, skip).forEach((t) => { stance[t.who] = t.stance; said.push(t.stance); chip(t.who, t.stance); });
+    if (skip) tally(m, said);
+    let first = !skip;
+    for (const t of m.talk.slice(skip)) {
+      if (room !== m.team) break;
+      if (!A[t.who]) continue;
+      if (!first && pres && A[pres].x === BOARD_SPOT[0] && A[pres].y === BOARD_SPOT[1]) {   // 발표가 끝나면 화면을 끄고 자리로 걸어감
+        hideBoard(); quiet(pres); moveTo(pres, ...seatOf[pres]); await sleep(1900); faceTo(pres, 50);
+      }
+      first = false;
+      Object.keys(A).forEach((id) => id !== t.who && quiet(id));       // 말풍선은 한 번에 하나
+      who.forEach((id) => id !== t.who && faceTo(id, A[t.who].x));     // 모두 말하는 사람 쪽으로 돌아봄
+      faceTo(t.who, 50);
+      A[t.who].el.classList.add("speak"); say(t.who, '<span class="dots"><i></i><i></i><i></i></span>');
+      await talk(900);
+      const full = (t.revised ? `🔄 ${t.from}→${t.stance} · ` : "") + t.say;
+      for (let i = 3; i < full.length + 3; i += 3) { say(t.who, esc(short(full.slice(0, i), 120))); await talk(35); }
+      chip(t.who, t.stance); said.push(t.stance); tally(m, said);
+      await talk(Math.min(4200, 1400 + full.length * 18));
+      const named = who.filter((id) => id !== t.who && O.agents[id] && full.includes(O.agents[id].name));   // 이름이 불린 직원이 대답
+      if (named.length) {
+        quiet(t.who);
+        for (const id of named.slice(0, 2)) {
+          faceTo(id, A[t.who].x);
+          const mine = stance[id], same = mine && t.stance && mine === t.stance, opp = mine && t.stance && mine !== t.stance && mine !== "중립" && t.stance !== "중립";
+          say(id, same ? pick(AGREE) : opp ? pick(DISAGREE) : pick(NEUTRAL), false);
+          await talk(1500); quiet(id);
+        }
+      } else quiet(t.who);
+      stance[t.who] = t.stance;
+    }
+    hideBoard();
+    if (pres && A[pres] && A[pres].y === BOARD_SPOT[1]) { moveTo(pres, ...seatOf[pres]); await sleep(1900); }
+    if (room === m.team) {
+      showDecision(m); await talk(2600);
+      const go = /^(진입|매수)$/.test(m.decision), out = /^(매도|정리|일부 매도)$/.test(m.decision);   // 결정에 대한 표정: 자기 의견대로 됐나
+      who.forEach((id) => {
+        const st0 = stance[id]; if (!st0 || id === m.talk[m.talk.length - 1].who) return;
+        const happy = (st0 === "찬성" && (go || m.decision === "유지")) || (st0 === "반대" && !go && m.decision !== "유지"), meh = st0 === "중립";
+        say(id, meh ? "🙂" : happy ? pick(["😀", "👍", "😎"]) : pick(["😕", "🤔", "😮‍💨"]), false, 2200);
+      });
+      await talk(4900); $("#decision").classList.remove("on");
+    }
+    if (room === m.team && /^(진입|조건부 진입|매수|조건부 매수|매도|정리|일부 매도)$/.test(m.decision) && m.done) {   // 트레이더가 단말기로 걸어가 주문
+      const trader = m.team === "stock" ? "trade" : "exec";
+      await toTerminal(trader, /조건부/.test(m.decision) ? "대기 주문 ⏳" : /진입|매수/.test(m.decision) ? "체결 ✓" : "정리 ✓", "go");
+    }
+    if ($("#tbl")) { $("#tbl").classList.remove("live"); $(".sign", $("#tbl")).textContent = m.team === "stock" ? "주식팀 회의 탁자" : "코인팀 회의 탁자"; }
+    if (night) leave(); else who.forEach((id, i) => setTimeout(() => { if (!meetingOn()) goHome(id); }, i * 160));   // 바로 다음 회의가 시작됐으면 그대로
+    setTimeout(() => Object.keys(A).forEach((id) => chip(id, null)), 8000);
+  } finally {
+    seenMeet = Math.max(seenMeet, m.id); try { localStorage.setItem("office2_meet", String(seenMeet)); } catch (e) {}
+    btn.classList.remove("meet"); busy[m.team] = false;
+    if (!(m.team === "stock" && new Date(Date.now() + 9 * 3600e3).getUTCHours() < 7)) dayNight();   // 밤 회의 뒤에는 leave() 가 걸어 나간 다음 숨김
+    if ($("#ctrl")) $("#ctrl").classList.remove("on");
+    if (tab === "meet" && !openMeet) renderMeetList();
+  }
+}
+const finalTalk = (m) => Object.values(Object.fromEntries(m.talk.map((t) => [t.who, t])));   // 직원마다 마지막 의견 (토론 뒤 바꿨으면 바뀐 의견)
+const liveShown = {}, liveBusy = { stock: false, coin: false };
+async function playLive(team) {                    // 진행 중인 회의 실시간 중계: 봇이 올린 발언을 도착한 만큼 차례로 (끝나면 회의 다시 보기가 나머지를 이어서)
+  const L = O && O.live && O.live[team];
+  if (!L || room !== team || busy[team] || liveBusy[team] || O.meetings.some((m) => m.id === L.id)) return;
+  liveBusy[team] = true;
+  try {
+    if (!gather[team] || gather[team].id !== L.id) { gatherFor(team, L.id); await sleep(Object.keys(A).length * 90 + 1900); }   // 아직 안 모였으면 먼저 탁자로 (걷기 끝까지)
+    const said = L.talk.slice(0, liveShown[L.id] || 0).map((t) => t.stance);
+    for (let i = liveShown[L.id] || 0; i < L.talk.length; i++) {
+      const t = L.talk[i];
+      if (room !== team || busy[team]) break;
+      liveShown[L.id] = i + 1;
+      if (!A[t.who]) continue;
+      Object.keys(A).forEach((id) => id !== t.who && quiet(id));       // 말풍선은 한 번에 하나 · 모두 말하는 사람 쪽으로
+      Object.keys(A).forEach((id) => id !== t.who && faceTo(id, A[t.who].x));
+      faceTo(t.who, 50);
+      A[t.who].el.classList.add("speak"); say(t.who, '<span class="dots"><i></i><i></i><i></i></span>');
+      await talk(900);
+      const full = (t.revised ? `🔄 ${t.from}→${t.stance} · ` : "") + t.say;
+      for (let j = 3; j < full.length + 3; j += 3) { say(t.who, esc(short(full.slice(0, j), 120))); await talk(35); }
+      chip(t.who, t.stance); said.push(t.stance); tally({ id: L.id, name: L.name }, said);
+      await talk(Math.min(4200, 1400 + full.length * 18));
+      quiet(t.who);
+    }
+  } finally { liveBusy[team] = false; }
+}
+const meetingLive = () => !!(gather.stock || gather.coin || (O && O.live && Object.keys(O.live).length));
+function planText(m) {
+  const p = m.plan || {};
+  if (m.team === "coin" && m.decision === "진입" && p.lev) return `${p.side === "long" ? "롱" : "숏"} ${p.lev}배 · 증거금 ${usd(p.margin, 0)} · 진입 ${usd(p.price)} · 손절 ${usd(p.sl)} · 익절 ${usd(p.tp)} · 손익비 ${p.rr} · 손절 때 -${usd(p.loss_at_sl, 0)}`;
+  return m.done || "";
+}
+function gauge(v) {
+  if (v == null) return "";
+  return `<div class="gauge"><i style="left:${((v + 1) / 2 * 100).toFixed(0)}%"></i></div><div class="gl"><span>반대</span><span>적중률 가중 찬반 ${v > 0 ? "+" : ""}${Number(v).toFixed(2)}</span><span>찬성</span></div>`;
+}
+function checksHtml(m) { return Object.entries(m.checks || {}).map(([k, v]) => `<span><b class="${v[0] === "✓" ? "ok" : "down"}">${esc(v[0])}</b>${esc(k)} <span class="dim">${esc(short(v[1] || "", 28))}</span></span>`).join(""); }
+function showDecision(m) {
+  const el = $("#decision"); if (!el) return;
+  const lead = O.agents[m.talk[m.talk.length - 1].who];
+  el.innerHTML = `<h4>${esc(lead.name)} 결정 · <span class="dec ${DEC[m.decision] || "wait"}">${esc(m.decision)}</span> <span class="dim" style="font-size:12px">${esc(m.name)}</span></h4>`
+    + gauge(m.vote) + (Object.keys(m.checks || {}).length ? `<div class="ck">${checksHtml(m)}</div>` : "")
+    + `<div class="pl">${esc(planText(m))}${m.note ? `<br><span class="down">안전장치: ${esc(m.note)}</span>` : ""}${m.ok != null ? `<br>점검표 ✓ ${m.ok}/7` : ""}</div>`;
+  el.classList.add("on");
+}
+
+// ================================================================ 혼자 일하는 모습 (생각 · 옆자리 상의)
+const lunch = {};
+function lunchTime() { const k = new Date(Date.now() + 9 * 3600e3); return room === "stock" && k.getUTCHours() === 12; }
+function ambient() {
+  if (!O || meetingOn()) return;
+  const ids = Object.keys(A); if (!ids.length) return;
+  const id = ids[Math.floor(Math.random() * ids.length)], g = O.agents[id] || {};
+  if (A[id].el.classList.contains("say") || A[id].el.classList.contains("away") || A[id].el.style.visibility === "hidden") return;
+  const r = Math.random();
+  if (lunchTime() && Object.keys(lunch).length < 3 && r < 0.35) {     // 12시: 몇 명씩 점심 (화면에서만 · 일은 봇이 계속)
+    say(id, pick(["점심 다녀올게요 🍱", "밥 먹고 올게", "금방 올게요"]), false, 2200);
+    setTimeout(() => { if (meetingOn()) return; moveTo(id, ...DOOR); }, 1200);
+    setTimeout(() => { if (A[id] && A[id].x === DOOR[0] && A[id].y === DOOR[1]) A[id].el.style.visibility = "hidden"; }, 3200);
+    lunch[id] = setTimeout(() => {
+      delete lunch[id];
+      const a = A[id]; if (!a || a.el.style.visibility !== "hidden") return;
+      placeAt(id, ...DOOR); a.el.style.visibility = ""; if (!meetingOn()) goHome(id);
+      setTimeout(() => say(id, pick(["잘 먹었다", "다녀왔어요", "배부르다…"]), false, 2200), 1900);
+    }, (3 + Math.random() * 4) * 60000);
+    return;
+  }
+  if (r < 0.12) {                                                      // 커피 한 잔
+    moveTo(id, coffeePos()[0] + 3, coffeePos()[1]);
+    setTimeout(() => { if (meetingOn()) return; faceTo(id, coffeePos()[0]); const c = $("#coffee"); if (c) { c.classList.add("brew"); setTimeout(() => c.classList.remove("brew"), 3000); } say(id, "☕", false, 2600); }, 1900);
+    setTimeout(() => { if (!meetingOn()) { goHome(id); setTimeout(() => say(id, pick(["후… 이제 좀 살겠다", "커피 수혈 완료", "자, 다시 일하자"]), true, 2400), 1900); } }, 5200);
+    return;
+  }
+  if (r < 0.2) {                                                       // 창가에서 기지개
+    moveTo(id, ...WINDOW_SPOT);
+    setTimeout(() => { if (!meetingOn()) say(id, pick(["으아~ 기지개", "밖에 날씨 좋네", "잠깐 바람 좀…"]), false, 2600); }, 1900);
+    setTimeout(() => { if (!meetingOn()) goHome(id); }, 5000);
+    return;
+  }
+  if (r < 0.6 && g.thought) say(id, esc(short(g.thought, 70)), true, 4800);
+  else if (r < 0.85) {
+    const other = ids[Math.floor(Math.random() * ids.length)]; if (other === id || A[other].el.classList.contains("away")) return;
+    const [x, y] = A[other].home; moveTo(id, x + (A[id].home[0] < x ? -6 : 6), y);
+    setTimeout(() => { if (!meetingOn()) say(id, ["이거 한번 봐 줄래?", "숫자 맞는지 확인 좀", "아까 그 자료 말이야", "이건 어떻게 봐?"][Math.floor(Math.random() * 4)], false, 2600); }, 1800);
+    setTimeout(() => { if (!meetingOn()) say(other, ["음… 잠깐만", "좋아, 볼게", "그건 좀 애매해", "괜찮아 보이는데?"][Math.floor(Math.random() * 4)], false, 2400); }, 3800);
+    setTimeout(() => { if (!meetingOn()) goHome(id); }, 6800);
+  } else glow(id);
+}
+
+// ================================================================ 요약 카드
+let livePx = {};
+function summary() {
+  if (!O) return;
+  if (room === "stock") {
+    const b = O.stock;
+    $("#summary").innerHTML = `<div class="card" data-go="tab:book"><div class="k">주식팀 가상 자산</div><div class="v">${won(b.equity)}</div><div class="s ${cls(b.ret)}">${pct(b.ret)} · 시작 ${won(b.start)}</div></div>`
+      + `<div class="card" data-go="tab:book"><div class="k">보유</div><div class="v">${b.pos.length}종목</div><div class="s">현금 ${Math.round(b.cash / b.equity * 100)}%</div></div>`
+      + b.pos.slice(0, 4).map((p) => `<div class="card" data-go="chart:${esc(p.symbol)}"><div class="k">${esc(p.name)}</div><div class="v ${cls(p.ret)}">${pct(p.ret)}</div><div class="s">${p.w}% · ${esc(p.style || "")}</div></div>`).join("")
+      + (b.pend || []).map((o) => `<div class="card" data-go="chart:${esc(o.symbol)}"><div class="k">⏳ ${esc(o.name)} 조건부 매수</div><div class="v" style="font-size:14px">${(+o.trigger).toLocaleString()} ${o.above ? "↑ 돌파" : "↓ 눌림"}</div><div class="s">${kday(o.until)} ${kst(o.until)}까지 · 손절 -${o.stop_pct}%</div></div>`).join("")
+      + nextCard("stock") + `<div class="card" data-go="tab:book"><div class="k">성적</div><div class="v" style="font-size:13px">${esc(b.record)}</div><div class="s">관심 ${b.watch.length}종목</div></div>`;
+  } else {
+    const b = O.coin; let eq = b.cash, up = 0;
+    const cards = b.pos.map((p) => {
+      const px = livePx[p.coin] || p.price || p.entry, u = (px - p.entry) / p.entry * p.lev * p.margin * (p.side === "long" ? 1 : -1); eq += p.margin + u; up += u;
+      const span = p.tp - p.sl, at = Math.max(0, Math.min(1, (px - p.sl) / span)), en = Math.max(0, Math.min(1, (p.entry - p.sl) / span));
+      return `<div class="card wide" data-go="chart:${p.coin}"><div class="k">${p.coin} ${p.side === "long" ? "롱" : "숏"} ${p.lev}배 · ${usd(px)}${p.half ? " · ½ 익절됨" : ""}</div><div class="v ${cls(u)}">${pct(u / p.margin * 100, 1)} <span style="font-size:12px">${usd(u, 2)}</span></div>`
+        + `<div class="rail2"><b style="left:${(en * 100).toFixed(1)}%"></b><i style="left:${(at * 100).toFixed(1)}%"></i></div><div class="s">손절 ${usd(p.sl)} · 진입 ${usd(p.entry)} · 익절 ${usd(p.tp)}</div></div>`;
+    }).join("");
+    $("#summary").innerHTML = `<div class="card" data-go="tab:book"><div class="k">코인팀 가상 잔고 · 실시간</div><div class="v">${usd(eq, 2)}</div><div class="s ${cls(eq - b.start)}">${pct((eq / b.start - 1) * 100)} · 미실현 ${usd(up, 2)}</div></div>`
+      + cards + (b.pend || []).map((o) => `<div class="card" data-go="chart:${o.coin}"><div class="k">⏳ ${o.coin} 조건부 ${o.side === "long" ? "롱" : "숏"} ${o.lev}배</div><div class="v" style="font-size:14px">${usd(o.trigger)} ${o.above ? "↑ 오르면" : "↓ 내리면"}</div><div class="s">지금 ${usd(livePx[o.coin] || (b.metrics[o.coin] || {}).price)} · ${kst(o.until)}까지</div></div>`).join("") + nextCard("coin") + hotCoins(3).map((k) => [k, b.metrics[k]]).map(([k, m]) => `<div class="card" data-go="chart:${k}"><div class="k">${k} ${usd(livePx[k] || m.price)}</div><div class="v ${cls(m.score)}">${m.score > 0 ? "+" : ""}${m.score}점</div><div class="s">세팅 점수 · 기준 ±${(O.next && O.next.coin && O.next.coin.th) || 4}</div></div>`).join("")
+      + `<div class="card" data-go="tab:book"><div class="k">성적</div><div class="v" style="font-size:13px">${esc(b.record)}</div><div class="s">공포탐욕 ${b.fng ? b.fng.value + " " + esc(b.fng.label) : "-"}</div></div>`;
+  }
+}
+
+function nextCard(team) {
+  const n = (O.next || {})[team]; if (!n) return "";
+  const mm = (s) => (s >= 3600 ? `${Math.floor(s / 3600)}시간 ${Math.round(s % 3600 / 60)}분` : `${Math.ceil(s / 60)}분`);
+  const off = team === "stock" && (new Date(Date.now() + 9 * 3600e3).getUTCHours() < 7 || (O.next || {}).weekend);
+  const top = n.top ? `${esc(n.top.name)} ${n.top.score > 0 && team === "coin" ? "+" : ""}${n.top.score}점` : "후보 없음";
+  const pm = team === "coin" ? "±" : "", up = n.th > (n.base || n.th) ? ` (한도를 빨리 써서 +${n.th - n.base})` : "";
+  const sub = off ? ((O.next || {}).weekend ? "주말 · 장이 닫혀 있어 월요일에" : "07시 출근 후")
+    : team === "coin" && (O.next || {}).coin_full ? `보유 ${(O.next || {}).coin_max}개가 꽉 차서 새 진입은 쉼`
+    : team === "stock" && (O.next || {}).stock_full ? `보유 ${(O.next || {}).stock_max}종목이 꽉 차서 새 매수 회의는 쉼`
+    : n.out && n.resume ? `하루 속도 맞추는 중 · ${kst(n.resume)}쯤 다시 회의`
+    : n.out ? "오늘 이 팀 Gemini 몫을 다 써서 내일 0시까지 쉼"
+    : n.top && Math.abs(n.top.score) >= n.th ? (n.wait > 0 ? `기준 넘음 · 직전 회의 뒤 ${mm(n.wait)} 뒤 회의` : "기준 넘음 → 곧 회의")
+    : `기준 ${pm}${n.th}점${up} · 신호가 오면 바로 회의`;
+  const b = (O.next || {}).budget;
+  const lv = O.live && O.live[team];
+  return `<div class="card"${lv ? ` data-go="live:${team}"` : n.top ? ` data-go="chart:${esc(n.top.symbol || n.top.name)}"` : ""}><div class="k">${lv ? `🔴 회의 중 #${lv.id} ${esc(lv.name)}` : "다음 회의 후보"} · 기준 ${team === "coin" ? "±" : ""}${n.th}점</div><div class="v" style="font-size:14px">${top}</div><div class="s">${sub}</div></div>`
+    + (b ? `<div class="card"><div class="k">오늘 AI팀 Gemini</div><div class="v">${b.used}<span class="dim" style="font-size:12px"> / ${b.limit}</span></div><div class="s">${b.by && b.share ? `이 팀 ${b.by[team] || 0} / ${Math.round(b.limit * b.share[team])} · ` : ""}빨리 쓰면 기준을 올려 좋은 신호만</div></div>` : "");
+}
+function benchHtml(team, ret) {                    // 시장과 비교: 그냥 들고 있었다면
+  const bv = (O.next || {}).bench || {}, keys = team === "stock" ? ["S&P500", "코스피"] : ["BTC"];
+  const rows = keys.filter((k) => bv[k]).map((k) => `<span style="margin-right:12px">${k} 그냥 보유 <b class="${cls(bv[k].ret)}">${pct(bv[k].ret)}</b></span>`);
+  if (!rows.length) return "";
+  const since = bv[keys.find((k) => bv[k])].since;
+  return `<div style="font-size:12px;margin:6px 0 2px">팀 <b class="${cls(ret)}">${pct(ret)}</b> <span class="dim">vs</span> ${rows.join("")}<span class="dim">(${esc(since.slice(5))}부터)</span></div>`;
+}
+function skillHtml(team) {                         // 팀 실력: 팀 결정대로 vs 매번 진입 vs 안 함 · 매매 R · 생각 바꾸기
+  const k = (((O.next || {}).skill) || {})[team]; if (!k) return "";
+  if (!k.n && !k.trades) return `<div class="sec">팀 실력 성적표</div><div class="dim" style="font-size:12px">회의가 채점되면 (주식 정한 기간 · 코인 정한 시간 뒤) 여기에 쌓여요</div>` + shadowHtml(team);
+  const row = (l, v, d) => `<div style="display:flex;justify-content:space-between;font-size:12.5px;padding:2px 0"><span>${l}</span><b class="${cls(v)}">${v == null ? "-" : pct(v)}</b></div>${d ? `<div class="dim" style="font-size:11px;margin:-1px 0 3px">${d}</div>` : ""}`;
+  const rv = k.revise || {};
+  return `<div class="sec">팀 실력 성적표 <span class="dim" style="font-size:11px">채점된 회의 ${k.n}번</span></div>`
+    + (k.n ? row("팀 결정대로 (관망 = 0)", k.team, `진입 ${k.entered}번 · 대표 결정 적중 ${esc(k.lead_hit || "-")}`) + row("매번 안건 방향으로 진입했다면", k.always) + row("한 번도 안 들어갔다면", 0) : "")
+    + (k.trades ? `<div style="font-size:12.5px;padding:3px 0">실제 매매 ${k.trades}건 · 승률 ${k.win}% · 평균 <b class="${cls(k.avg_r)}">${k.avg_r > 0 ? "+" : ""}${k.avg_r}R</b> <span class="dim">(1R = 손절 때 잃는 돈)</span></div>` : "")
+    + (rv.better + rv.worse + rv.same ? `<div style="font-size:12.5px;padding:3px 0">🔄 토론 뒤 생각 바꿈: 맞게 바뀜 <b class="up">${rv.better}</b> · 틀리게 바뀜 <b class="down">${rv.worse}</b> · 차이 없음 ${rv.same}</div>` : "")
+    + (k.sig ? `<div style="font-size:12.5px;padding:3px 0">🛡 신호 꺾여 손절선 당긴 매매 ${k.sig.n}건 · 평균 <b class="${cls(k.sig.avg_r)}">${k.sig.avg_r > 0 ? "+" : ""}${k.sig.avg_r}R</b></div>` : "")
+    + shadowHtml(team);
+}
+function shadowHtml(team) {                        // 비교 장부: 회의 없이 점수만으로 매매했다면
+  const v = (((O.next || {}).shadow) || {})[team], b = O[team]; if (!v) return "";
+  const f = (x) => (team === "coin" ? usd(x, 0) : won(x));
+  return `<div style="font-size:12.5px;padding:6px 0 2px;border-top:1px dashed #2a2f42;margin-top:6px">⚖️ 회의 없이 점수만으로 매매했다면 (비교 장부): <b>${f(v.equity)}</b> <b class="${cls(v.ret)}">${pct(v.ret)}</b> <span class="dim">vs 팀 ${pct(b.ret)}</span></div>`
+    + `<div class="dim" style="font-size:11.5px">매매 ${v.trades}건${v.trades ? ` · 승률 ${v.win}% · 평균 ${v.avg_r > 0 ? "+" : ""}${v.avg_r}R` : ""} · 보유 ${v.pos} · 같은 수수료·손절 관리로 진입만 회의 없이</div>`;
+}
+function wrapHtml(team) {
+  const w = ((O.next || {}).wrap || {})[team];
+  return w && w.text ? `<div class="sec">🌙 ${esc(w.day.slice(5))} 마감 정리</div><div style="font-size:12.5px;line-height:1.5">${esc(w.text)}${w.tomorrow ? `<br><span class="dim">내일 볼 것: ${esc(w.tomorrow)}</span>` : ""}</div>` : "";
+}
+function spark(curve, start) {
+  const c = (curve || []).map((x) => x[1]); if (c.length < 2) return '<div class="dim" style="font-size:12px">하루 넘게 쌓이면 곡선이 그려져요</div>';
+  const lo = Math.min(...c, start), hi = Math.max(...c, start), W = 300, H = 60, X = (i) => (i / (c.length - 1) * W).toFixed(1), Y = (v) => (H - 4 - (v - lo) / (hi - lo || 1) * (H - 8)).toFixed(1);
+  const col = c[c.length - 1] >= start ? "#ff5f6d" : "#4ea3ff";
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:60px"><line x1="0" x2="${W}" y1="${Y(start)}" y2="${Y(start)}" stroke="#2a2f42" stroke-dasharray="3 3"/><polyline fill="none" stroke="${col}" stroke-width="2" points="${c.map((v, i) => `${X(i)},${Y(v)}`).join(" ")}"/></svg>`;
+}
+
+// ================================================================ 탭
+let prevTab = "feed", prevMeet = null;
+function go(where) {                               // 누르면 넘어가기: chart:종목 · meet:번호 · tab:이름 · agent:직원 · room:팀 · live:팀 · lastmeet
+  const [k, v] = where.split(":");
+  if (k === "chart") { chartSym = v; openMeet = null; setTab("chart"); }
+  else if (k === "meet") { const m = O.meetings.find((x) => x.id === +v); if (m) { openMeet = m; tab = "meet"; $$("#tabs button").forEach((b) => b.classList.toggle("on", b.dataset.t === "meet")); stopWs(); renderMeet(m); } }
+  else if (k === "tab") { openMeet = null; setTab(v); }
+  else if (k === "agent") profile(v);
+  else if (k === "back") { if (prevTab === "meet" && prevMeet) go(`meet:${prevMeet.id}`); else { openMeet = null; setTab(prevTab); } }
+  else if (k === "room") { if (room !== v) setRoom(v); }
+  else if (k === "live") { if (room !== v) setRoom(v); setTab("feed"); toast("회의 중 · 탁자에서 실시간으로 보여 줘요"); }
+  else if (k === "lastmeet") { const m = O.meetings.filter((x) => x.team === room).slice(-1)[0]; if (O.live && O.live[room]) toast("지금 회의 중이에요 · 끝나면 회의록에 올라와요"); else if (m) go(`meet:${m.id}`); }
+  if (innerWidth < 980 && k !== "room" && k !== "lastmeet") $("#side").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+document.addEventListener("click", (e) => {
+  const el = e.target.closest("[data-go]"); if (!el || !O) return;
+  if (e.target.closest("button:not([data-go])")) return;
+  e.stopPropagation(); go(el.dataset.go);
+}, true);
+function setTab(t) { tab = t; $$("#tabs button").forEach((b) => b.classList.toggle("on", b.dataset.t === t)); render(); }
+function render() {
+  if (!O) return;
+  if (tab !== "chart") stopWs();
+  if (tab === "feed") renderFeed(); else if (tab === "meet") (openMeet ? renderMeet(openMeet) : renderMeetList()); else if (tab === "book") renderBook(); else if (tab === "chart") renderChart();
+}
+function renderMeetList() {
+  const ms = O.meetings.filter((m) => m.team === room).slice().reverse();
+  $("#pane").innerHTML = ms.map((m) => `<div class="mt" data-id="${m.id}"><div class="a">#${m.id} <b>${esc(m.name)}</b> <span class="dec ${DEC[m.decision] || "wait"}">${esc(m.decision)}</span>${m.req ? `<span class="req">👤 ${esc(m.req)}</span>` : ""}${m.kind === "긴급 안건" ? '<span class="req" style="background:#5a1f2a;color:#ffb3bd">🚨 긴급</span>' : ""}${m.graded ? ` <span class="${cls(m.ret)}">채점 ${pct(m.ret, 1)}</span>` : ""}</div><div class="b">${esc(m.at)} · ${esc(m.kind || "")} · 찬성 ${finalTalk(m).filter((t) => t.stance === "찬성").length} · 반대 ${finalTalk(m).filter((t) => t.stance === "반대").length}${m.talk.some((t) => t.revised) ? ` · 🔄 ${m.talk.filter((t) => t.revised).length}명 생각 바꿈` : ""}${m.ok != null ? ` · 점검표 ✓${m.ok}/7` : ""}${m.done ? " · " + esc(m.done) : ""}${m.note ? " · 안전장치: " + esc(m.note) : ""}</div></div>`).join("") || '<div class="dim">아직 회의가 없어요. 스카우트가 안건을 찾는 중이에요.</div>';
+  $$(".mt", $("#pane")).forEach((el) => (el.onclick = () => { openMeet = O.meetings.find((m) => m.id === +el.dataset.id); render(); }));
+}
+function renderMeet(m) {
+  if (m.team !== room) { room = m.team; $$("#rooms button").forEach((b) => b.classList.toggle("on", b.dataset.r === room)); buildRoom(); summary(); }
+  $("#pane").innerHTML = `<button class="back">‹ 회의 목록</button><div style="font-size:15px;font-weight:700">#${m.id} ${esc(m.name)} <span class="dec ${DEC[m.decision] || "wait"}">${esc(m.decision)}</span></div>`
+    + `<div class="dim" style="font-size:12px;margin:3px 0 6px">${esc(m.at)} · ${esc(m.kind || "")}${m.why ? " · 찾은 이유: " + esc(m.why.join(", ")) : ""}</div>`
+    + (m.memo && Object.keys(m.memo).length ? `<div class="ckl" style="grid-template-columns:1fr">${[["thesis", "투자 논거"], ["catalyst", "촉매"], ["risks", "핵심 위험"], ["invalidation", "무효화 조건"]].filter(([k]) => m.memo[k]).map(([k, n]) => `<span><b style="color:var(--gold)">${n}</b> ${esc(m.memo[k])}</span>`).join("")}</div>` : "")
+    + m.talk.map((t) => { const ag = O.agents[t.who] || { name: t.who, role: "" }; return `<div class="row"><div class="av" data-go="agent:${t.who}" style="background:${color(t.who)}">${esc(ag.name.slice(0, 2))}</div><div class="bd"><div class="hd"><b>${esc(ag.name)}</b><span class="dim">${esc(ag.role)}</span>${t.revised ? `<span class="dim" style="font-size:11px">🔄 생각 바꿈 ${esc(t.from)}→</span>` : ""}<span class="st ${ST[t.stance] || "mid"}">${esc(t.stance)}</span></div><div class="tx">${esc(t.say)}</div>${t.thought ? `<div class="tx dim" style="font-size:11.5px;font-style:italic">속마음: ${esc(t.thought)}</div>` : ""}</div></div>`; }).join("")
+    + (m.vote != null ? `<div class="sec">찬반</div>${gauge(m.vote)}` : "")
+    + (Object.keys(m.checks || {}).length ? `<div class="sec">점검표 ✓ ${m.ok}/7</div><div class="ckl">${checksHtml(m)}</div>` : "")
+    + `<div class="sec">결과</div><div>${esc(planText(m)) || "-"}${m.note ? `<div class="down" style="font-size:12px">안전장치: ${esc(m.note)}</div>` : ""}${m.graded ? `<div style="font-size:12px">채점: ${pct(m.ret, 1)}</div>` : ""}</div>`
+    + `<div class="acts"><button class="pri" id="replay">▶ 이 회의 다시 보기</button><button data-go="chart:${esc(m.symbol)}">📈 ${esc(m.name)} 차트</button>${m.proposer ? `<button data-go="agent:${m.proposer}">👤 발표자 ${esc((O.agents[m.proposer] || {}).name || "")}</button>` : ""}</div>`;
+  $(".back", $("#pane")).onclick = () => { openMeet = null; render(); };
+  $("#replay").onclick = () => playMeeting(m);
+}
+function renderBook() {
+  const ag = Object.entries(O.agents).filter(([, a]) => a.team === room).sort((x, y) => (y[1].calls ? y[1].hits / y[1].calls : -1) - (x[1].calls ? x[1].hits / x[1].calls : -1));
+  let h = "";
+  if (room === "stock") {
+    const b = O.stock;
+    h += `<div class="sec">자산 곡선 (시작 ${won(b.start)} 점선)</div>${spark(b.curve, b.start)}` + benchHtml("stock", b.ret) + skillHtml("stock") + wrapHtml("stock");
+    h += `<div class="sec">보유 종목</div><table class="t"><tr><th>종목</th><th>비중</th><th>수익</th><th>손절 · 목표</th><th>스타일</th></tr>${b.pos.map((p) => `<tr data-go="chart:${esc(p.symbol)}"><td>${esc(p.name)}</td><td>${p.w}%</td><td class="${cls(p.ret)}">${pct(p.ret)}</td><td class="dim">${(+p.stop).toLocaleString()} · ${(+p.tgt).toLocaleString()}</td><td>${esc(p.style || "")}</td></tr>`).join("") || '<tr><td colspan="5" class="dim">없음 · 회의에서 매수가 결정되면 담겨요</td></tr>'}</table>`;
+    if ((b.pend || []).length) h += `<div class="sec">⏳ 대기 주문 (조건부 매수)</div><table class="t"><tr><th>종목</th><th>살 가격</th><th>손절 · 목표</th><th>까지</th></tr>${b.pend.map((o) => `<tr data-go="chart:${esc(o.symbol)}"><td>${esc(o.name)}</td><td>${(+o.trigger).toLocaleString()} ${o.above ? "↑돌파" : "↓눌림"}</td><td class="dim">-${o.stop_pct}% · +${o.target_pct}%</td><td class="dim">${kday(o.until)} (#${o.meeting})</td></tr>`).join("")}</table>`;
+    h += `<div class="sec">정리한 종목</div><table class="t">${b.hist.map((x) => `<tr data-go="chart:${esc(x.symbol)}"><td>${esc(x.name)}</td><td class="dim">${esc(x.t0.slice(5))}→${esc(x.t1.slice(5))}</td><td class="${cls(x.ret)}">${pct(x.ret)}</td><td class="dim">${esc(x.why)}</td></tr>`).join("") || '<tr><td class="dim">아직 없음</td></tr>'}</table>`;
+    h += `<div class="sec">스카우트 관심 목록</div>` + (b.watch.map((w) => `<div class="lnk" data-go="chart:${esc(w.symbol)}" style="font-size:12px"><b>${esc(w.name)}</b> <span class="dim">점수 ${w.score}</span> · ${esc(w.why.join(", "))}</div>`).join("") || '<div class="dim">훑는 중</div>');
+    if (Object.keys(b.styles || {}).length) h += `<div class="sec">스타일별 성적</div>` + Object.entries(b.styles).map(([k, v]) => `<div style="font-size:12px">${esc(k)}: ${esc(v)}</div>`).join("");
+  } else {
+    const b = O.coin;
+    h += `<div class="sec">잔고 곡선 (시작 ${usd(b.start, 0)} 점선)</div>${spark(b.curve, b.start)}` + benchHtml("coin", b.ret) + skillHtml("coin") + wrapHtml("coin");
+    h += `<div class="sec">포지션</div><table class="t"><tr><th>코인</th><th>방향</th><th>증거금</th><th>진입</th><th>손절 · 익절</th><th>청산가</th></tr>${b.pos.map((p) => `<tr data-go="chart:${p.coin}"><td>${p.coin}</td><td class="${p.side === "long" ? "up" : "down"}">${p.side === "long" ? "롱" : "숏"} ${p.lev}x</td><td>${usd(p.margin, 0)}</td><td>${usd(p.entry)}</td><td class="dim">${usd(p.sl)} · ${usd(p.tp)}</td><td class="dim">${usd(p.liq, 0)}</td></tr>`).join("") || '<tr><td colspan="6" class="dim">없음</td></tr>'}</table>`;
+    if ((b.pend || []).length) h += `<div class="sec">⏳ 대기 주문 (조건부 진입)</div><table class="t"><tr><th>코인</th><th>방향</th><th>진입 가격</th><th>손절 · 익절</th><th>까지</th></tr>${b.pend.map((o) => `<tr data-go="chart:${o.coin}"><td>${o.coin}</td><td class="${o.side === "long" ? "up" : "down"}">${o.side === "long" ? "롱" : "숏"} ${o.lev}x</td><td>${usd(o.trigger)} ${o.above ? "↑" : "↓"}</td><td class="dim">${usd(o.sl)} · ${usd(o.tp)}</td><td class="dim">${kst(o.until)} (#${o.meeting})</td></tr>`).join("")}</table>`;
+    h += `<div class="sec">끝난 매매</div><table class="t">${b.hist.map((x) => `<tr data-go="${x.meeting && O.meetings.some((m) => m.id === x.meeting) ? `meet:${x.meeting}` : `chart:${x.coin}`}"><td>${kday(x.t1)} ${kst(x.t1)}</td><td>${x.coin} ${x.side === "long" ? "롱" : "숏"} ${x.lev}x</td><td>${esc(x.why)}</td><td class="${cls(x.net)}">${usd(x.net, 2)}</td><td class="${cls(x.pct)}">${pct(x.pct, 1)}</td></tr>`).join("") || '<tr><td class="dim">아직 없음</td></tr>'}</table>`;
+    h += `<div class="sec">지금 자료</div>` + Object.entries(b.metrics || {}).map(([k, m]) => `<div class="lnk" data-go="chart:${k}" style="font-size:12px"><b>${k}</b> 점수 <span class="${cls(m.score)}">${m.score}</span> · 펀딩 ${m.funding ?? "-"}% · 미결제 1시간 ${m.oi_1h ?? "-"}% · 상위 롱숏 ${m.top_ls ?? "-"} · 테이커 ${m.taker ?? "-"} · ${esc((m.why || []).join(", "))}</div>`).join("");
+    h += `<div class="dim" style="font-size:11px;margin-top:6px">10~30배 · 증거금은 확신도로 (손절 때 잔고 0.5~3% · 애매하면 작게라도 진입) · 동시 보유 제한 없음 (잔고만큼) · 격리 마진 (청산 = 증거금 전부) · 손절은 0.05% 미끄러짐 · 손절은 청산가 안쪽 · 수수료 0.05%·펀딩 넣음 · 과거 점검에서 고배율 단타는 손해였어요</div>`;
+  }
+  h += `<div class="sec">직원 적중 순위 (찬성·반대를 기간 뒤 실제 가격으로 채점)</div>` + ag.map(([id, a]) => `<div style="font-size:12px;padding:3px 0;cursor:pointer;display:flex;align-items:center;gap:6px" data-p="${id}"><span class="av" style="width:20px;height:20px;font-size:8px;background:${color(id)}">${esc(a.name.slice(0, 2))}</span>${esc(a.name)} <span class="dim">${esc(a.role)}</span> · ${a.calls ? `${a.hits}/${a.calls} (${Math.round(a.hits / a.calls * 100)}%)` : '<span class="dim">채점 전</span>'}</div>`).join("");
+  $("#pane").innerHTML = h;
+  $$("[data-p]", $("#pane")).forEach((el) => (el.onclick = () => profile(el.dataset.p)));
+}
+function profile(id) {
+  const a = O && O.agents[id]; if (!a) return;
+  if (tab !== "profile") { prevTab = tab; prevMeet = tab === "meet" ? openMeet : null; }
+  tab = "profile"; $$("#tabs button").forEach((b) => b.classList.remove("on")); stopWs();
+  $("#pane").innerHTML = `<button class="back" data-go="back">‹ 뒤로</button><div style="display:flex;gap:10px;align-items:center"><div class="av" style="width:40px;height:40px;font-size:13px;background:${color(id)}">${esc(a.name.slice(0, 2))}</div><div><div style="font-size:16px;font-weight:700">${esc(a.name)}</div><div class="dim" style="font-size:12px">${esc(a.role)} · ${a.team === "coin" ? "코인팀" : "주식팀"}</div></div></div>`
+    + `<div style="margin:10px 0;font-size:13px;line-height:1.5">${esc(a.persona)}</div>`
+    + `<div class="sec">지금 생각</div><div style="font-style:italic">${esc(a.thought || "-")}</div>`
+    + `<div class="sec">성적</div><div>${a.calls ? `의견 ${a.calls}번 중 ${a.hits}번 맞음 (${Math.round(a.hits / a.calls * 100)}%)` : "아직 채점 전"}</div>`
+    + `<div class="sec">최근 회의 의견</div>` + (O.meetings.filter((m) => m.talk.some((t) => t.who === id)).slice(-6).reverse().map((m) => { const t = m.talk.find((x) => x.who === id); return `<div class="lnk" data-go="meet:${m.id}" style="font-size:12px">#${m.id} ${esc(m.name)} <span class="st ${ST[t.stance] || "mid"}">${esc(t.stance)}</span> → 팀 결정 <span class="dec ${DEC[m.decision] || "wait"}">${esc(m.decision)}</span>${m.graded ? ` <span class="${cls(m.ret)}">${pct(m.ret, 1)}</span>` : ""}</div>`; }).join("") || '<div class="dim">아직 없음</div>')
+    + `<div class="sec">기억</div>` + ((a.memory || []).map((x) => `<div style="font-size:12.5px;padding:2px 0">· ${esc(x)}</div>`).join("") || '<div class="dim">아직 없음</div>')
+    + `<div class="sec">최근 업무</div>` + (O.feed.filter((f) => f.who === id && f.t <= feedCursor).slice(-6).reverse().map((f) => `<div style="font-size:12px;padding:2px 0"><span class="dim">${kst(f.t)}</span> ${esc(f.text)}</div>`).join("") || '<div class="dim">-</div>');
+  if (A[id] && !busy[room]) say(id, esc(short(a.thought || "…", 70)), true, 4000);
+}
+
+// ================================================================ 차트 (주식: 일봉 + 매수·손절·목표 / 코인: 바이낸스 실시간 + 팀 매매 BUY/SELL · 손절·익절·청산 선)
+let CH = null, CS = null, VS = null, ws = null, chartSym = null, iv = "15m", siv = "1d", cgen = 0, MA = [];
+const IV = { "1m": 60, "5m": 300, "15m": 900, "1h": 3600, "4h": 14400, "1d": 86400 }, KSTS = 9 * 3600;
+const IVN = { "1m": "1분", "5m": "5분", "15m": "15분", "1h": "1시간", "4h": "4시간", "1d": "일봉" }, SIV = { "1d": "일봉", "5m": "5분", "1m": "1분" };
+function stopWs() { if (ws) { ws.onclose = null; try { ws.close(); } catch (e) {} ws = null; } }
+function newChart(timeVisible) {
+  if (CH) { try { CH.remove(); } catch (e) {} CH = null; }
+  if (!window.LightweightCharts) { $("#chart").innerHTML = '<div class="dim" style="padding:20px">차트 도구를 못 불러왔어요</div>'; return false; }
+  CH = LightweightCharts.createChart($("#chart"), { autoSize: true, layout: { background: { color: "#0f121a" }, textColor: "#8a91a6", fontFamily: "Pretendard, sans-serif" },
+    grid: { vertLines: { color: "#191d29" }, horzLines: { color: "#191d29" } }, rightPriceScale: { borderColor: "#2a2f42", scaleMargins: { top: 0.1, bottom: 0.22 } },
+    timeScale: { borderColor: "#2a2f42", timeVisible, rightOffset: 5 }, crosshair: { mode: 0 } });
+  CS = CH.addCandlestickSeries({ upColor: "#ff5f6d", downColor: "#4ea3ff", borderVisible: false, wickUpColor: "#ff5f6d", wickDownColor: "#4ea3ff" });
+  VS = CH.addHistogramSeries({ priceFormat: { type: "volume" }, priceScaleId: "v", color: "#2a3045" });
+  CH.priceScale("v").applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
+  MA = [["#ffcf5c", 20], ["#b48cff", 60]].map(([color, n]) => ({ n, s: CH.addLineSeries({ color, lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false }) }));
+  CH.subscribeCrosshairMove((pm) => ohlc(pm && pm.seriesData ? pm.seriesData.get(CS) : null));
+  return true;
+}
+let lastBar = null;
+function ohlc(d) {                                  // 왼쪽 위: 시가·고가·저가·종가 (마우스를 올린 봉 · 없으면 마지막 봉)
+  const el = $("#ohlc"); if (!el) return;
+  d = d || lastBar; if (!d) { el.textContent = ""; return; }
+  const ch = (d.close / d.open - 1) * 100, f = (x) => (room === "coin" ? usd(x) : (+x).toLocaleString());
+  el.innerHTML = `시 ${f(d.open)} · 고 <span class="up">${f(d.high)}</span> · 저 <span class="down">${f(d.low)}</span> · 종 <b class="${cls(ch)}">${f(d.close)} (${pct(ch)})</b>`
+    + `<br><span style="color:#ffcf5c">━ ${MA[0].n}</span> <span style="color:#b48cff">━ ${MA[1].n}</span> <span class="dim">${room === "coin" ? "지수이동평균" : "이동평균"}</span>`;
+}
+function setBars(bars, ema) {                       // 봉 · 거래량 · 이동평균 한꺼번에
+  CS.setData(bars.map((x) => ({ time: x.t, open: x.o, high: x.h, low: x.l, close: x.c })));
+  VS.setData(bars.map((x) => ({ time: x.t, value: x.v, color: vcol(x.o, x.c) })));
+  MA.forEach(({ n, s }) => {
+    const out = []; let e = null, sum = 0;
+    bars.forEach((x, i) => {
+      if (ema) { e = e == null ? x.c : x.c * 2 / (n + 1) + e * (1 - 2 / (n + 1)); if (i >= n - 1) out.push({ time: x.t, value: e }); }
+      else { sum += x.c; if (i >= n) sum -= bars[i - n].c; if (i >= n - 1) out.push({ time: x.t, value: sum / n }); }
+    });
+    s.setData(out);
+  });
+  const z = bars[bars.length - 1]; lastBar = z ? { open: z.o, high: z.h, low: z.l, close: z.c } : null; ohlc(null);
+}
+const DSHORT = { 진입: "진입", 매수: "매수", "조건부 진입": "조건부", "조건부 매수": "조건부", 관망: "관망", 정리: "정리", 매도: "매도", "일부 매도": "일부 매도", 유지: "유지" };
+function meetMarks(team, sym, toTime) {             // 이 종목 회의: 차트 위에 '#번호 결정'
+  return O.meetings.filter((m) => m.team === team && m.symbol === sym).slice(-10).map((m) => {
+    const t = toTime(m.ts); if (t == null) return null;
+    const go = /진입|매수/.test(m.decision) && !/조건부/.test(m.decision), cond = /조건부/.test(m.decision), out = /정리|매도/.test(m.decision);
+    return { time: t, position: "aboveBar", shape: "square", size: 0.6, color: go ? "#ff5f6d" : cond ? "#c58bff" : out ? "#4ea3ff" : "#6b7280", text: `#${m.id} ${DSHORT[m.decision] || m.decision}` };
+  }).filter(Boolean);
+}
+const vcol = (o, c) => (c >= o ? "rgba(255,95,109,.35)" : "rgba(78,163,255,.35)");
+function line(price, color, title, style = 0, w = 1) { if (price) CS.createPriceLine({ price, color, lineWidth: w, lineStyle: style, axisLabelVisible: true, title }); }
+const chartShell = (bar, leg) => `<div id="chartbox"><div class="cbar">${bar}</div><div class="cwrap"><div id="chart"></div><div id="ohlc"></div></div><div class="leg">${leg}</div></div>`;
+async function renderChart() {
+  const gen = ++cgen;
+  stopWs();
+  if (room === "stock") {
+    const b = O.stock, last = O.meetings.filter((m) => m.team === "stock").slice(-1)[0];
+    const syms = [...new Map([...b.pos.map((p) => [p.symbol, p.name]), ...(b.pend || []).map((o) => [o.symbol, o.name]), ...(last ? [[last.symbol, last.name]] : []), ...b.watch.slice(0, 5).map((w) => [w.symbol, w.name])]).entries()];
+    if (chartSym && !syms.some(([s]) => s === chartSym)) syms.unshift([chartSym, ([...O.stock.watch, ...O.stock.hist, ...O.meetings].find((x) => x.symbol === chartSym) || {}).name || chartSym]);
+    if (!chartSym || !syms.some(([s]) => s === chartSym)) chartSym = syms[0] && syms[0][0];
+    $("#pane").innerHTML = chartShell((syms.map(([s, n]) => `<button data-s="${esc(s)}" class="${s === chartSym ? "on" : ""}">${esc(n)}</button>`).join("") || '<span class="dim">보유·안건·관심 종목이 생기면 보여요</span>')
+        + (syms.length ? `<span style="width:8px"></span>` + Object.keys(SIV).map((k) => `<button data-si="${k}" class="${k === siv ? "on" : ""}">${SIV[k]}</button>`).join("") : ""),
+      `${siv === "1d" ? "일봉 6달" : SIV[siv] + "봉 (봇이 받은 최근 장)"} · <span class="up">▲매수</span> <span class="down">▼정리</span> · ■ 회의 · 선: <span style="color:var(--gold)">매수가</span> <span class="down">손절</span> <span class="ok">목표</span> <span style="color:#c58bff">대기 매수</span> · 아래 막대 = 거래량`);
+    $$("[data-s]", $("#pane")).forEach((el) => (el.onclick = () => { chartSym = el.dataset.s; renderChart(); }));
+    $$("[data-si]", $("#pane")).forEach((el) => (el.onclick = () => { siv = el.dataset.si; renderChart(); }));
+    if (!chartSym || !newChart(siv !== "1d")) return;
+    const kr = /^\d/.test(chartSym);                                  // 한국 종목은 원 단위 정수 · 미국은 센트까지
+    CS.applyOptions({ priceFormat: { type: "price", precision: kr ? 0 : 2, minMove: kr ? 1 : 0.01 } });
+    const p = b.pos.find((x) => x.symbol === chartSym), po = (b.pend || []).find((x) => x.symbol === chartSym);
+    const lines = () => {
+      if (po) { line(+po.trigger, "#c58bff", po.above ? "대기 매수(돌파)" : "대기 매수(눌림)", 2, 2); line(po.trigger * (1 - po.stop_pct / 100), "#4ea3ff", "손절(대기)", 1); }
+      if (p) { line(p.entry, "#ffcf5c", "매수가", 2); line(p.stop, "#4ea3ff", "손절", 0, 2); line(p.tgt, "#3ddc97", "목표", 0, 2); }
+    };
+    if (siv !== "1d") {                                                // 분봉: 봇이 장중에 받아 둔 1분봉 (5분은 묶어서)
+      let it = null; try { const r = await fetch(`intraday/${encodeURIComponent(chartSym)}.json?t=${Date.now()}`); if (r.ok) it = await r.json(); } catch (e) {}
+      if (gen !== cgen) return;
+      if (!it || !(it.bars || []).length) { siv = "1d"; toast("이 종목은 분봉 자료가 없어 일봉으로 보여 줘요 (봇이 장중에 받은 종목만)"); return renderChart(); }
+      const yr = +(it.updated || "").slice(0, 4) || new Date().getFullYear(), step = IV[siv], agg = new Map();
+      it.bars.forEach(([ts, o, h, l, c, v]) => {
+        const [md, hm] = ts.split(" "), [mo, d] = md.split("-").map(Number), [hh, mi] = hm.split(":").map(Number);
+        const t = Math.floor(Date.UTC(yr, mo - 1, d, hh, mi) / 1000 / step) * step, x = agg.get(t);
+        if (!x) agg.set(t, { t, o, h, l, c, v }); else { x.h = Math.max(x.h, h); x.l = Math.min(x.l, l); x.c = c; x.v += v; }
+      });
+      const bars = [...agg.values()].sort((a, z) => a.t - z.t);
+      setBars(bars, true);
+      const first = bars[0].t;
+      CS.setMarkers(meetMarks("stock", chartSym, (ts) => { const t = Math.floor((ts + KSTS) / step) * step; return t >= first ? t : null; }));
+      lines(); CH.timeScale().fitContent();
+      return;
+    }
+    let st = null; try { st = await fetch(`stocks/${encodeURIComponent(chartSym)}.json`).then((r) => r.json()); } catch (e) {}
+    if (gen !== cgen || !st || !st.bars) return;
+    const btn = $(`.cbar [data-s="${CSS.escape(chartSym)}"]`); if (btn && st.name && btn.textContent === chartSym) btn.textContent = st.name;   // 이름을 모르던 종목은 파일 이름으로
+    const all = st.bars.map((x) => ({ t: x[0], o: x[1], h: x[2], l: x[3], c: x[4], v: x[5] || 0 }));
+    setBars(all, false);                                               // 이동평균은 전체로 계산 · 화면은 6달
+    const bars = st.bars.slice(-130), mk = [], snap = (d) => (bars.find((x) => x[0] >= d) || [])[0];
+    if (p) { const t = snap(p.t); if (t) mk.push({ time: t, position: "belowBar", color: "#ff5f6d", shape: "arrowUp", text: "매수", size: 2 }); }
+    b.hist.filter((h) => h.symbol === chartSym).forEach((h) => { const a = snap(h.t0), z = snap(h.t1); if (a) mk.push({ time: a, position: "belowBar", color: "#ff5f6d", shape: "arrowUp", text: "매수" }); if (z) mk.push({ time: z, position: "aboveBar", color: "#4ea3ff", shape: "arrowDown", text: `정리 ${pct(h.ret, 1)}` }); });
+    const prev = (d) => { let t = null; for (const x of bars) { if (x[0] <= d) t = x[0]; else break; } return t; };   // 회의 날(주말이면 직전 거래일) 봉에
+    mk.push(...meetMarks("stock", chartSym, (ts) => prev(new Date((ts + KSTS) * 1000).toISOString().slice(0, 10))));
+    mk.sort((x, y) => (x.time < y.time ? -1 : 1)); CS.setMarkers(mk);
+    lines();
+    CH.timeScale().setVisibleLogicalRange({ from: all.length - 130, to: all.length + 3 });
+  } else {
+    if (!chartSym || !coinList().includes(chartSym)) chartSym = (O.coin.pos[0] || {}).coin || hotCoins(1)[0] || "BTC";
+    $("#pane").innerHTML = chartShell(coinList().map((c) => `<button data-s="${c}" class="${c === chartSym ? "on" : ""}">${c}</button>`).join("") + `<span style="width:8px"></span>`
+        + Object.keys(IV).map((k) => `<button data-i="${k}" class="${k === iv ? "on" : ""}">${IVN[k]}</button>`).join(""),
+      `바이낸스 선물 실시간 · 왼쪽으로 밀면 과거 봉을 더 불러와요 · <span class="up">▲BUY</span> <span class="down">▼SELL</span> 팀 진입 · ● 정리 · ■ 회의 · 선: <span style="color:var(--gold)">진입</span> <span class="ok">익절</span> <span style="color:var(--warn)">손절</span> <span class="dim">청산가</span> <span style="color:#c58bff">대기 진입</span>`);
+    $$("[data-s]", $("#pane")).forEach((el) => (el.onclick = () => { chartSym = el.dataset.s; renderChart(); }));
+    $$("[data-i]", $("#pane")).forEach((el) => (el.onclick = () => { iv = el.dataset.i; renderChart(); }));
+    if (!newChart(iv !== "1d")) return;
+    const sym = chartSym, step = IV[iv];
+    const get = async (end) => {
+      for (const u of [`https://fapi.binance.com/fapi/v1/klines?symbol=${sym}USDT&interval=${iv}&limit=500${end ? `&endTime=${end}` : ""}`, `https://api.binance.com/api/v3/klines?symbol=${sym}USDT&interval=${iv}&limit=500${end ? `&endTime=${end}` : ""}`]) {
+        try { const r = await fetch(u); if (r.ok) return (await r.json()).map((x) => ({ t: x[0] / 1000 + KSTS, o: +x[1], h: +x[2], l: +x[3], c: +x[4], v: +x[5] })); } catch (e) {}
+      }
+      return [];
+    };
+    let bars = await get();
+    if (gen !== cgen || !bars.length) return;
+    const dp = pxd(bars[bars.length - 1].c);                           // 가격 자릿수 (DOGE 0.07788 · XRP 1.3058 · BTC 80,868.0)
+    CS.applyOptions({ priceFormat: { type: "price", precision: dp, minMove: Math.pow(10, -dp) } });
+    const bt = (ts) => Math.floor(ts / step) * step + KSTS;           // 바이낸스 봉은 UTC 기준으로 나뉨
+    const marks = () => {
+      const first = bars[0].t, mk = [];
+      O.coin.hist.filter((h) => h.coin === sym).forEach((h) => {
+        const L = h.side === "long";
+        if (bt(h.t0) >= first) mk.push({ time: bt(h.t0), position: L ? "belowBar" : "aboveBar", color: L ? "#ff5f6d" : "#4ea3ff", shape: L ? "arrowUp" : "arrowDown", text: `${L ? "BUY" : "SELL"} ${h.lev}x`, size: 2 });
+        if (bt(h.t1) >= first) mk.push({ time: bt(h.t1), position: L ? "aboveBar" : "belowBar", color: h.net > 0 ? "#3ddc97" : "#ff9f43", shape: "circle", text: `${h.why} ${pct(h.pct, 1)}` });
+      });
+      const p = O.coin.pos.find((x) => x.coin === sym);
+      if (p && bt(p.t) >= first) { const L = p.side === "long"; mk.push({ time: bt(p.t), position: L ? "belowBar" : "aboveBar", color: L ? "#ff5f6d" : "#4ea3ff", shape: L ? "arrowUp" : "arrowDown", text: `${L ? "BUY" : "SELL"} ${p.lev}x`, size: 2 }); }
+      mk.push(...meetMarks("coin", sym, (ts) => (bt(ts) >= first ? bt(ts) : null)));
+      mk.sort((a, z) => a.time - z.time); CS.setMarkers(mk);
+    };
+    setBars(bars, true); marks();
+    const po = (O.coin.pend || []).find((x) => x.coin === sym);
+    if (po) { line(po.trigger, "#c58bff", `대기 ${po.side === "long" ? "롱" : "숏"}`, 2, 2); line(po.sl, "#ff9f43", "손절(대기)", 1); line(po.tp, "#3ddc97", "익절(대기)", 1); }
+    const p = O.coin.pos.find((x) => x.coin === sym);
+    if (p) { line(p.entry, "#ffcf5c", "진입", 2); line(p.tp, "#3ddc97", "익절", 0, 2); line(p.sl, "#ff9f43", "손절", 0, 2); line(p.liq, "#6b7280", "청산가", 1); }
+    CH.timeScale().setVisibleLogicalRange({ from: bars.length - 130, to: bars.length + 5 });
+    let loading = false, done = false;                                 // 왼쪽 끝까지 밀면 과거 봉 500개씩 더
+    CH.timeScale().subscribeVisibleLogicalRangeChange(async (r) => {
+      if (!r || loading || done || gen !== cgen || r.from > 15) return;
+      loading = true;
+      const old = await get((bars[0].t - KSTS) * 1000 - 1);
+      if (gen !== cgen) return;
+      const add = old.filter((x) => x.t < bars[0].t);
+      if (!add.length) { done = true; loading = false; return; }
+      bars = add.concat(bars);
+      const cur = CH.timeScale().getVisibleLogicalRange();
+      setBars(bars, true); marks();
+      if (cur) CH.timeScale().setVisibleLogicalRange({ from: cur.from + add.length, to: cur.to + add.length });
+      loading = false;
+    });
+    liveWs(gen, (k) => {                                               // 실시간 봉 → 마지막 봉·이동평균도 갱신
+      const x = { t: k.t / 1000 + KSTS, o: +k.o, h: +k.h, l: +k.l, c: +k.c, v: +k.v };
+      if (x.t === bars[bars.length - 1].t) bars[bars.length - 1] = x; else if (x.t > bars[bars.length - 1].t) bars.push(x);
+      lastBar = { open: x.o, high: x.h, low: x.l, close: x.c };
+    });
+  }
+}
+function liveWs(gen, onBar) {
+  stopWs();
+  const st = `${chartSym.toLowerCase()}usdt@kline_${iv}`;
+  const open = (i) => {
+    if (gen !== cgen) return;
+    try { ws = new WebSocket(i % 2 ? `wss://stream.binance.com:9443/ws/${st}` : `wss://fstream.binance.com/ws/${st}`); } catch (e) { setTimeout(() => open(i + 1), 3000); return; }
+    ws.onmessage = (ev) => { const k = JSON.parse(ev.data).k; if (!k || gen !== cgen) return; const t = k.t / 1000 + KSTS;
+      CS.update({ time: t, open: +k.o, high: +k.h, low: +k.l, close: +k.c }); VS.update({ time: t, value: +k.v, color: vcol(+k.o, +k.c) });
+      livePx[chartSym] = +k.c; if (onBar) onBar(k); };
+    ws.onclose = () => setTimeout(() => open(i + 1), 3000);
+  };
+  open(0);
+}
+function priceWs() {                                       // 코인팀 실시간 잔고용 (차트와 따로)
+  const open = (i) => {
+    let s; try { s = new WebSocket((i % 2 ? "wss://stream.binance.com:9443" : "wss://fstream.binance.com") + "/stream?streams=" + COINS.map((k) => k.toLowerCase() + "usdt@miniTicker").join("/")); } catch (e) { setTimeout(() => open(i + 1), 5000); return; }
+    s.onmessage = (ev) => { const d = JSON.parse(ev.data).data; if (d && d.s) livePx[d.s.replace("USDT", "")] = +d.c; };
+    s.onclose = () => setTimeout(() => open(i + 1), 5000);
+  };
+  open(0);
+  setInterval(() => { if (room === "coin") summary(); }, 2000);
+}
+
+// ================================================================ 방 바꾸기 · 불러오기
+function setRoom(r) {
+  room = r; $$("#rooms button").forEach((b) => b.classList.toggle("on", b.dataset.r === r));
+  buildRoom(); summary(); openMeet = null; chartSym = null; if (tab === "profile") tab = "feed"; setTab(tab);
+}
+$$("#rooms button").forEach((b) => (b.onclick = () => setRoom(b.dataset.r)));
+$$("#tabs button").forEach((b) => (b.onclick = () => { openMeet = null; setTab(b.dataset.t); }));
+function marketPills() {                           // 국장·미장 지금 열렸나 (봇이 올린 거래 시간표)
+  const now = Date.now(), ses = (D && D.sessions) || {};
+  [["kr", "KR", "국장"], ["us", "US", "미장"]].forEach(([id, k, nm]) => {
+    const on = (ses[k] || []).some((w) => Date.parse(w.start) <= now && now < Date.parse(w.end));
+    const next = (ses[k] || []).map((w) => Date.parse(w.start)).filter((t) => t > now).sort((a, b) => a - b)[0];
+    const el = $("#p-" + id); if (!el) return;
+    const day = (t) => new Date(t + 9 * 3600e3).getUTCDay(), wd = next && day(next) !== day(now) ? "일월화수목금토"[day(next)] + " " : "";
+    el.classList.toggle("on", on); $("span", el).textContent = on ? `${nm} 열림` : next ? `${nm} 닫힘 · ${wd}${kst(next / 1000)} 개장` : `${nm} 닫힘`;
+  });
+}
+function header() {
+  marketPills();
+  const h = new Date(Date.now() + 9 * 3600e3).getUTCHours(), on = h >= 7, wk = O && O.next && O.next.weekend;
+  const p = $("#p-stock"); p.classList.toggle("on", on && !wk); $("span", p).textContent = !on ? "주식팀 퇴근 · 07시 출근" : wk ? "주식팀 주말 · 자료만 정리" : "주식팀 근무 중";
+  $("#clock").textContent = `${kst(Date.now() / 1000)} · 자료 ${O ? O.updated.slice(11) : "-"}`;
+}
+// GitHub Pages 에서는 live 가지(봇이 2분마다·회의 직후 올림)를 커밋 해시로 읽어 캐시 없이 최신 · 안 되면 사이트의 office.json
+const GH = (() => { const m = location.hostname.match(/^([^.]+)\.github\.io$/), seg = location.pathname.split("/").filter(Boolean)[0]; return m && seg && !seg.includes(".") ? `${m[1]}/${seg}` : null; })();
+let liveOk = !!GH, liveSha = null, liveAt = 0, liveObj = null;
+async function fetchOffice() {
+  const site = fetch("office.json?t=" + Date.now()).then((r) => r.json()).catch(() => null);
+  let live = liveObj;
+  if (liveOk && Date.now() - liveAt > (meetingLive() ? 28000 : 110000)) {   // GitHub 조회는 한 시간 60번까지: 회의 중엔 30초 · 평소엔 2분에 한 번
+    liveAt = Date.now();
+    try {
+      const r = await fetch(`https://api.github.com/repos/${GH}/git/ref/heads/live`);
+      if (r.status === 403 || r.status === 429) liveOk = false;         // 한도에 걸리면 이 창에서는 사이트 파일만
+      else if (r.ok) { const sha = (await r.json()).object.sha; if (sha !== liveSha) { liveObj = live = await fetch(`https://raw.githubusercontent.com/${GH}/${sha}/office.json`).then((x) => x.json()); liveSha = sha; } }
+    } catch (e) {}
+  }
+  const s = await site;
+  if (live && s) return (live.now || 0) >= (s.now || 0) ? live : s;
+  return live || s;
+}
+async function poll(first) {
+  let o = null; try { o = await fetchOffice(); } catch (e) {}
+  if (!o || !o.feed) { if (first) { buildRoom(); $("#pane").innerHTML = '<div class="dim">아직 기록이 없어요. 봇이 켜져 있으면 몇 분 안에 직원들이 일을 시작해요.</div>'; } header(); return; }
+  const firstLoad = !O; O = o;
+  if (firstLoad) { feedCursor = O.feed.length ? O.feed[Math.max(0, O.feed.length - 7)].t : 0; buildRoom(); setTab(tab); }
+  const keys = new Set(queue.map((f) => f.t + f.who + f.text));
+  O.feed.filter((f) => f.t > feedCursor && !keys.has(f.t + f.who + f.text)).forEach((f) => queue.push(f));
+  if (queue.length) schedule();
+  summary(); header();
+  for (const m of O.meetings.filter((m) => m.id > seenMeet).slice(-2)) if (!busy[m.team] && !liveBusy[m.team]) { playMeeting(m); break; }
+  playLive(room);                                                      // 진행 중인 회의가 있으면 도착한 발언부터 실시간으로
+}
+async function loadData() { try { D = await fetch("data.json?t=" + Date.now()).then((r) => r.json()); } catch (e) {} led(); }
+loadData(); setInterval(loadData, 300000);
+function pollLoop() { setTimeout(() => poll().finally(pollLoop), meetingLive() ? 15000 : 45000); }   // 회의 중엔 더 자주
+poll(true).finally(pollLoop); setInterval(() => { header(); dayNight(); }, 15000); setInterval(ambient, 7000); setInterval(led, 5000); priceWs();
+</script>
+</body>
+</html>
